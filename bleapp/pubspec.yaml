@@ -1,0 +1,21 @@
+name: smart_shoe_ble_app
+description: Flutter app for SmartShoe-ESP32 (BLE GATT client for gy86peakwithble.ino)
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_reactive_ble: ^5.3.1
+  permission_handler: ^11.3.1
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

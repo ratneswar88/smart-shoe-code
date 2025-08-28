@@ -1,0 +1,20 @@
+<!-- android/app/src/main/res/xml/file_paths.xml -->
+<paths>
+    <!-- Share anything from app-internal files directory -->
+    <files-path
+        name="files_root"
+        path="." />
+
+    <!-- Common subfolders your app uses -->
+    <files-path
+        name="sessions"
+        path="sessions/" />
+    <files-path
+        name="models"
+        path="models/" />
+
+    <!-- Temp exports for Share action -->
+    <cache-path
+        name="exports_cache"
+        path="exports/" />
+</paths>

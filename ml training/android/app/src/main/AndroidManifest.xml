@@ -1,0 +1,34 @@
+﻿<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="shoeml_train"
+        android:icon="@mipmap/ic_launcher"
+        android:name="${applicationName}">
+        <!-- v2 embedding flag (safe to add even if not strictly required) -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- Keep the splash meta-data if you have it -->
+        <meta-data
+            android:name="io.flutter.embedding.android.NormalTheme"
+            android:resource="@style/NormalTheme" />
+    </application>
+</manifest>
+
