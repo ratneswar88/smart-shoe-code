@@ -1,0 +1,441 @@
+/* -------------------------------------------------------------------------- */
+/*                                    BLE                                     */
+/* -------------------------------------------------------------------------- */
+// =============================== ShoeBle ===============================
+class ShoeBle {
+  // ---------------- Streams (public) ----------------
+  final _connState = StreamController<DeviceConnectionState>.broadcast();
+  Stream<DeviceConnectionState> get connection$ => _connState.stream;
+
+  final _rssi = StreamController<int>.broadcast();
+  Stream<int> get rssi$ => _rssi.stream;
+
+  final roll$    = StreamController<double>.broadcast();
+  final pitch$   = StreamController<double>.broadcast();
+  final yaw$     = StreamController<double>.broadcast();
+  final steps$   = StreamController<int>.broadcast();
+  final cadence$ = StreamController<double>.broadcast();
+  final stride$  = StreamController<double>.broadcast();
+  final dh$      = StreamController<double>.broadcast();
+  final _tempCtrl = StreamController<double?>.broadcast();
+  Stream<double?> get temp$ => _tempCtrl.stream;
+
+  // ---------------- Core ----------------
+  final _ble = FlutterReactiveBle(); // 5.4.x: no logLevel param
+
+  String? _deviceId;
+  String? _targetId;
+  bool _isConnecting = false;
+  bool _isConnected  = false;
+  bool _disposed     = false;
+  int  _epoch        = 0;
+
+  // ---------------- Auto-reconnect ----------------
+  bool _autoReconnect = true;
+  Timer? _reconnectTimer;
+  Duration _backoff = const Duration(seconds: 2);
+  static const Duration _backoffMax = Duration(seconds: 30);
+  bool get isAutoReconnectEnabled => _autoReconnect;
+
+  // Periodic auto-scan / reconnect
+  Timer? _autoScanTimer;
+  bool _scanBusy = false;
+
+  // ---------------- Persistence ----------------
+  String? _lastId, _lastName;
+
+  // ---------------- UUIDs ----------------
+  final Uuid serviceUuid = Uuid.parse("0000feed-0000-1000-8000-00805f9b34fb");
+  final Uuid rollUuid    = Uuid.parse("0000a001-0000-1000-8000-00805f9b34fb");
+  final Uuid pitchUuid   = Uuid.parse("0000a002-0000-1000-8000-00805f9b34fb");
+  final Uuid yawUuid     = Uuid.parse("0000a003-0000-1000-8000-00805f9b34fb");
+  final Uuid tempUuid    = Uuid.parse("0000b001-0000-1000-8000-00805f9b34fb");
+  final Uuid stepsUuid   = Uuid.parse("0000c001-0000-1000-8000-00805f9b34fb");
+  final Uuid cadenceUuid = Uuid.parse("0000c002-0000-1000-8000-00805f9b34fb");
+  final Uuid strideUuid  = Uuid.parse("0000c003-0000-1000-8000-00805f9b34fb");
+  final Uuid altdhUuid   = Uuid.parse("0000c004-0000-1000-8000-00805f9b34fb");
+
+  // ---------------- Subscriptions ----------------
+  StreamSubscription<ConnectionStateUpdate>? _connSub;
+  StreamSubscription<List<int>>? _sRoll, _sPitch, _sYaw, _sTemp, _sSteps, _sCad, _sStride, _sDh;
+
+  // ---------------- Controls ----------------
+  void enableAutoReconnect(bool on) {
+    _autoReconnect = on;
+    if (!on) {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+    }
+  }
+
+  /// Safer scan that prefers last saved id/name;
+  /// if no "last" known, it scans for our service to avoid random devices.
+  Future<DiscoveredDevice?> scanOncePreferLast({
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    await _loadLast();
+    final hasName = _lastName != null && _lastName!.trim().isNotEmpty;
+    final hasId   = _lastId   != null && _lastId!.trim().isNotEmpty;
+
+    final wantSpecific = hasId || hasName;
+    final stream = _ble.scanForDevices(
+      withServices: wantSpecific ? const [] : [serviceUuid],
+    );
+
+    DiscoveredDevice? pick;
+    final sub = stream.listen((d) {
+      if (hasId && d.id == _lastId) {
+        pick ??= d; return;
+      }
+      if (hasName && d.name.trim().isNotEmpty && d.name.trim() == _lastName!.trim()) {
+        pick ??= d; return;
+      }
+      if (!wantSpecific) pick ??= d; // first service match
+    }, onError: (_) {}, cancelOnError: true);
+
+    await Future.delayed(timeout);
+    await sub.cancel();
+    return pick;
+  }
+
+  /// Legacy single-service scan (kept for completeness)
+  Future<DiscoveredDevice?> scanOnce({Duration timeout = const Duration(seconds: 6)}) async {
+    DiscoveredDevice? found;
+    final sub = _ble.scanForDevices(withServices: [serviceUuid]).listen(
+      (d) => found ??= d, onError: (_) {}, cancelOnError: true);
+    await Future.delayed(timeout);
+    await sub.cancel();
+    return found;
+  }
+
+  Future<void> connectAuto(String id, {String? hintName, bool subscribe = true}) async {
+    await _saveLast(id, name: hintName);
+    await connect(id, subscribe: subscribe);
+  }
+
+  Future<void> connectLast({bool subscribe = true}) async {
+    await _loadLast();
+    if (_lastId != null && _lastId!.isNotEmpty) {
+      await connect(_lastId!, subscribe: subscribe);
+    }
+  }
+
+  Future<void> forgetLast() async {
+    try {
+      final f = File("${(await _cfgDir()).path}/last_device.json");
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+    _lastId = _lastName = null;
+  }
+
+  /// Robust connect with re-entrancy guards. Does not hard-disconnect first.
+  Future<void> connect(String id, {bool subscribe = true}) async {
+    if (_disposed) return;
+
+    if (_isConnected && _deviceId == id) { // already on same id
+      _targetId = id; return;
+    }
+    if (_isConnecting && _targetId == id) return; // already trying
+
+    _targetId = id;
+    _isConnecting = true;
+
+    // If there’s an old connection to a different id, cancel that stream only.
+    if (_connSub != null && _deviceId != null && _deviceId != id) {
+      try { await _connSub?.cancel(); } catch (_) {}
+      _connSub = null;
+      _isConnected = false;
+      _deviceId = null;
+    }
+
+    final myEpoch = ++_epoch;
+
+    _connSub = _ble
+        .connectToDevice(id: id, connectionTimeout: const Duration(seconds: 8))
+        .listen((u) async {
+      if (_disposed || myEpoch != _epoch) return;
+
+      _safeAdd(_connState, u.connectionState);
+
+      if (u.connectionState == DeviceConnectionState.connected) {
+        debugPrint("[ShoeBLE] STATE connected -> id=$id");
+        _deviceId = id;
+        _isConnected = true;
+        _isConnecting = false;
+        _backoff = const Duration(seconds: 2);
+        await _saveLast(id);
+
+        if (subscribe) {
+          await _subscribeAll(myEpoch);
+        }
+      } else if (u.connectionState == DeviceConnectionState.disconnected) {
+        debugPrint("[ShoeBLE] STATE disconnected");
+        _isConnected = false;
+        _isConnecting = false;
+        await _teardownNotifies(cancelNative: false);
+        _deviceId = null;
+        _scheduleReconnect();
+      }
+    }, onError: (e, st) async {
+      if (_disposed || myEpoch != _epoch) return;
+      debugPrint("[ShoeBLE] CONNECT error: $e");
+      _isConnected = false;
+      _isConnecting = false;
+      _safeAdd(_connState, DeviceConnectionState.disconnected);
+      await _teardownNotifies(cancelNative: false);
+      _deviceId = null;
+      _scheduleReconnect();
+    }, cancelOnError: true);
+  }
+
+  /// If you initially connected with subscribe: false, call this to begin data.
+  Future<void> enableNotificationsNow() async {
+    if (!_isConnected || _deviceId == null) return;
+    final myEpoch = ++_epoch; // prevent old listeners
+    await _teardownNotifies(cancelNative: true);
+    await _subscribeAll(myEpoch);
+	
+  }
+
+  Future<void> disconnect() async {
+    _reconnectTimer?.cancel(); _reconnectTimer = null;
+    _epoch++; // invalidate callbacks
+    await _teardownNotifies(cancelNative: _isConnected);
+    try { await _connSub?.cancel(); } catch (_) {}
+    _connSub = null;
+    _isConnecting = false;
+    _deviceId = null;
+    _isConnected = false;
+	
+  }
+
+  /// Try to reconnect to last device; if unknown, service-scan and connect.
+  Future<void> tryReconnectLast({Duration delay = const Duration(milliseconds: 300)}) async {
+    if (_disposed || !_autoReconnect) return;
+    if (delay > Duration.zero) await Future.delayed(delay);
+    if (_isConnected || _isConnecting) return;
+
+    await _loadLast();
+    debugPrint("[ShoeBLE] AUTO_RECO begin auto=$_autoReconnect id=${_lastId ?? "-"} name=${_lastName ?? "-"}");
+
+    // Stage 1: direct by saved ID (fast path)
+    if (_lastId != null && _lastId!.isNotEmpty) {
+      try {
+        debugPrint("[ShoeBLE] AUTO_RECO try direct connect to ${_lastId}");
+        await connect(_lastId!, subscribe: true);
+        return;
+      } catch (e) {
+        debugPrint("[ShoeBLE] AUTO_RECO direct failed: $e");
+      }
+    }
+
+    // Stage 2: scan fallback (prefer last name/id; else first with our service)
+    final hit = await scanOncePreferLast(timeout: const Duration(seconds: 7));
+    if (hit != null) {
+      debugPrint("[ShoeBLE] AUTO_RECO scan hit id=${hit.id} name=${hit.name}");
+      await connectAuto(hit.id, hintName: hit.name.isNotEmpty ? hit.name : null, subscribe: true);
+      return;
+    }
+
+    debugPrint("[ShoeBLE] AUTO_RECO no device found; will backoff=${_backoff.inSeconds}s");
+    _scheduleReconnect(); // continue exponential backoff
+  }
+
+  // ---------------- Subscriptions to characteristics ----------------
+  Future<void> _subscribeAll(int myEpoch) async {
+    if (_disposed || _deviceId == null || myEpoch != _epoch) return;
+    final id = _deviceId!;
+
+    Future<StreamSubscription<List<int>>> sub(
+      Uuid charId, void Function(List<int>) onData) async {
+      final q = QualifiedCharacteristic(deviceId: id, serviceId: serviceUuid, characteristicId: charId);
+      return _ble.subscribeToCharacteristic(q).listen(
+        (bytes) { if (_disposed || myEpoch != _epoch) return; onData(bytes); },
+        onError: (e, st) { debugPrint("[ShoeBLE] SUB error $charId: $e"); }, cancelOnError: false);
+    }
+
+    _sRoll   = await sub(rollUuid,   (b) => _safeAdd(roll$,    _f32(b)));
+    _sPitch  = await sub(pitchUuid,  (b) => _safeAdd(pitch$,   _f32(b)));
+    _sYaw    = await sub(yawUuid,    (b) => _safeAdd(yaw$,     _f32(b)));
+    _sTemp   = await sub(tempUuid,   (b) { final v = _f32Nullable(b); if (v != null) _tempCtrl.add(v); });
+    _sSteps  = await sub(stepsUuid,  (b) => _safeAdd(steps$,   _i32(b)));
+    _sCad    = await sub(cadenceUuid,(b) => _safeAdd(cadence$, _f32(b)));
+    _sStride = await sub(strideUuid, (b) => _safeAdd(stride$,  _f32(b)));
+    _sDh     = await sub(altdhUuid,  (b) => _safeAdd(dh$,      _f32(b)));
+  }
+
+  Future<void> _teardownNotifies({required bool cancelNative}) async {
+    Future<void> _cancel(StreamSubscription? s) async { try { await s?.cancel(); } catch (_) {} }
+    if (cancelNative) {
+      await _cancel(_sRoll);   await _cancel(_sPitch);  await _cancel(_sYaw);
+      await _cancel(_sTemp);   await _cancel(_sSteps);  await _cancel(_sCad);
+      await _cancel(_sStride); await _cancel(_sDh);
+    }
+    _sRoll = _sPitch = _sYaw = _sTemp = _sSteps = _sCad = _sStride = _sDh = null;
+  }
+
+  void _scheduleReconnect() {
+    if (_disposed || !_autoReconnect || _isConnected || _isConnecting) return;
+    if (_reconnectTimer != null) return;
+
+    final jitter = Duration(milliseconds: math.Random().nextInt(300));
+    final when   = _backoff + jitter;
+
+    _reconnectTimer = Timer(when, () async {
+      _reconnectTimer = null;
+      if (_disposed || !_autoReconnect || _isConnected || _isConnecting) return;
+
+      await _loadLast();
+
+      // Try last id first
+      if (_lastId != null && _lastId!.isNotEmpty) {
+        try { await connect(_lastId!); return; } catch (_) {}
+      }
+
+      // Then scan (prefer last; else service)
+      final hit = await scanOncePreferLast();
+      if (hit != null) {
+        await connectAuto(hit.id, hintName: hit.name.isNotEmpty ? hit.name : null);
+        return;
+      }
+
+      // Exponential backoff
+      final nextMs = (_backoff.inMilliseconds * 2).clamp(2000, _backoffMax.inMilliseconds);
+      _backoff = Duration(milliseconds: nextMs);
+      _scheduleReconnect();
+    });
+  }
+
+  // ---------------- Auto-scan public API ----------------
+  void startAutoScanner({
+    Duration period = const Duration(seconds: 10),
+    Duration firstDelay = const Duration(milliseconds: 0),
+  }) {
+    if (_disposed) return;
+    stopAutoScanner();          // ensure single timer
+    enableAutoReconnect(true);  // keep the flag on
+
+    // Immediate attempt
+    Future.microtask(() => tryReconnectLast(delay: firstDelay));
+
+    _autoScanTimer = Timer.periodic(period, (_) async {
+      if (_disposed || !_autoReconnect || _isConnected || _isConnecting || _scanBusy) return;
+      _scanBusy = true;
+      try {
+        await tryReconnectLast(delay: Duration.zero);
+      } finally {
+        _scanBusy = false;
+      }
+    });
+  }
+
+  void stopAutoScanner() {
+    try { _autoScanTimer?.cancel(); } catch (_) {}
+    _autoScanTimer = null;
+  }
+
+  // ---------------- Helpers ----------------
+  void _safeAdd<T>(StreamController<T> c, T v) {
+    if (!_disposed && !c.isClosed) {
+      try { c.add(v); } catch (_) {}
+    }
+  }
+
+  double _f32(List<int> b) {
+    if (b.length < 4) return double.nan;
+    final bd = ByteData.sublistView(Uint8List.fromList(b));
+    return bd.getFloat32(0, Endian.little);
+  }
+
+  double? _f32Nullable(List<int> b) {
+    if (b.length < 4) return null;
+    final bd = ByteData.sublistView(Uint8List.fromList(b));
+    final v = bd.getFloat32(0, Endian.little);
+    return (v.isNaN || v.isInfinite) ? null : v;
+  }
+
+  int _i32(List<int> b) {
+    if (b.length < 4) return 0;
+    final bd = ByteData.sublistView(Uint8List.fromList(b));
+    return bd.getInt32(0, Endian.little);
+  }
+
+  // Expose BLE status so the shell can wait for "ready".
+  Stream<BleStatus> get bleStatus$ => _ble.statusStream;
+
+  /// Wait for BleStatus.ready (Android 12+ needs this), with a timeout.
+  /// Returns true if ready.
+  Future<bool> waitUntilReady({Duration timeout = const Duration(seconds: 8)}) async {
+    BleStatus? latest;
+    final sub = _ble.statusStream.listen((s) => latest = s);
+    final start = DateTime.now();
+    try {
+      while (DateTime.now().difference(start) < timeout) {
+        if (latest == BleStatus.ready) return true;
+        await Future.delayed(const Duration(milliseconds: 150));
+      }
+      return latest == BleStatus.ready;
+    } finally {
+      await sub.cancel();
+    }
+  }
+
+  // ---------------- Persistence ----------------
+  Future<Directory> _cfgDir() async {
+    final d = await getApplicationDocumentsDirectory();
+    final dir = Directory("${d.path}/shoeml");
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    return dir;
+  }
+
+  Future<void> _saveLast(String id, {String? name}) async {
+    try {
+      final f = File("${(await _cfgDir()).path}/last_device.json");
+      await f.writeAsString(jsonEncode({"id": id, "name": name ?? _lastName}), flush: true);
+      _lastId = id; _lastName = name ?? _lastName;
+      debugPrint("[ShoeBLE] LAST_SAVE id=$_lastId name=${_lastName ?? ""}");
+    } catch (e) {
+      debugPrint("[ShoeBLE] LAST_SAVE failed: $e");
+    }
+  }
+
+  Future<void> _loadLast() async {
+    if (_lastId != null && _lastId!.isNotEmpty) return; // already in memory
+    try {
+      final f = File("${(await _cfgDir()).path}/last_device.json");
+      if (await f.exists()) {
+        final m = jsonDecode(await f.readAsString()) as Map;
+        _lastId = (m["id"] as String?)?.trim();
+        _lastName = (m["name"] as String?)?.trim();
+        debugPrint("[ShoeBLE] LAST_LOAD id=$_lastId name=${_lastName ?? ""}");
+      } else {
+        debugPrint("[ShoeBLE] LAST_LOAD none");
+      }
+    } catch (e) {
+      debugPrint("[ShoeBLE] LAST_LOAD failed: $e");
+    }
+  }
+
+  // ---------------- Dispose ----------------
+  void dispose() {
+    _disposed = true;
+    _reconnectTimer?.cancel(); _reconnectTimer = null;
+    _autoScanTimer?.cancel();  _autoScanTimer = null;
+    _epoch++;
+    try { _connSub?.cancel(); } catch (_) {}
+    _connSub = null;
+
+    _sRoll = _sPitch = _sYaw = _sTemp = _sSteps = _sCad = _sStride = _sDh = null;
+
+    try { _connState.close(); } catch (_) {}
+    try { _rssi.close(); } catch (_) {}
+    try { roll$.close(); } catch (_) {}
+    try { pitch$.close(); } catch (_) {}
+    try { yaw$.close(); } catch (_) {}
+    try { steps$.close(); } catch (_) {}
+    try { cadence$.close(); } catch (_) {}
+    try { stride$.close(); } catch (_) {}
+    try { dh$.close(); } catch (_) {}
+    try { _tempCtrl.close(); } catch (_) {}
+  }
+}

@@ -1,0 +1,279 @@
+/* -------------------------------------------------------------------------- */
+/*                                 DASHBOARD                                  */
+/* -------------------------------------------------------------------------- */
+// --- chart state ---
+double _t = 0.0;                 // simple time counter for R/P/Y charts
+DateTime? _t0;                   // wall-clock base for temperature series
+
+final List<FlSpot> _r = [];      // roll series
+final List<FlSpot> _p = [];      // pitch series
+final List<FlSpot> _y = [];      // yaw series
+final List<FlSpot> _temp = [];   // temperature series
+
+StreamSubscription<double>? _sr, _sp, _sy;     // roll/pitch/yaw subs
+StreamSubscription<double?>? _sTemp;           // temperature sub
+
+void _push(List<FlSpot> series, double t, double v) {
+  series.add(FlSpot(t, v));
+  if (series.length > 600) series.removeAt(0);
+}
+
+class DashboardPage extends StatefulWidget {
+  const DashboardPage({super.key, required this.ble});
+  final ShoeBle ble;
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  String? _id;
+  double roll = 0, pitch = 0, yaw = 0, cadence = 0, stride = 0, dh = 0;
+  double? tempC;
+  int steps = 0, rssi = 0;
+  DeviceConnectionState conn = DeviceConnectionState.disconnected;
+
+  StreamSubscription? _s1, _s2, _s3, _s4, _s5, _s6, _s7, _s8, _s9, _s10;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Live chart listeners
+    _sr = widget.ble.roll$.stream.listen((v) {
+      if (!mounted) return;
+      setState(() {
+        _t += 0.1;
+        _push(_r, _t, v);
+      });
+    });
+
+    _sp = widget.ble.pitch$.stream.listen((v) {
+      if (!mounted) return;
+      setState(() {
+        _t += 0.1;
+        _push(_p, _t, v);
+      });
+    });
+
+    _sy = widget.ble.yaw$.stream.listen((v) {
+      if (!mounted) return;
+      setState(() {
+        _t += 0.1;
+        _push(_y, _t, v);
+      });
+    });
+
+    _t0 ??= DateTime.now();
+    _sTemp = widget.ble.temp$.listen((v) {
+      if (v == null || !mounted) return;
+      final t = DateTime.now().difference(_t0!).inMilliseconds / 1000.0;
+      _push(_temp, t, v);
+      setState(() {});
+    });
+
+    // 🔗 Bind numeric tiles / connection status
+    _bind();
+  }
+
+  void _bind() {
+    _s1  = widget.ble.connection$.listen((c) => setState(() => conn = c));
+    _s2  = widget.ble.roll$.stream.listen((v)   => setState(() => roll = v));
+    _s3  = widget.ble.pitch$.stream.listen((v)  => setState(() => pitch = v));
+    _s4  = widget.ble.yaw$.stream.listen((v)    => setState(() => yaw = v));
+    _s5  = widget.ble.temp$.listen((v)          => setState(() => tempC = v));
+    _s6  = widget.ble.steps$.stream.listen((v)  => setState(() => steps = v));
+    _s7  = widget.ble.cadence$.stream.listen((v)=> setState(() => cadence = v));
+    _s8  = widget.ble.stride$.stream.listen((v) => setState(() => stride = v));
+    _s9  = widget.ble.dh$.stream.listen((v)     => setState(() => dh = v));
+    _s10 = widget.ble.rssi$.listen((v)          => setState(() => rssi = v));
+  }
+
+  @override
+  void dispose() {
+    // cancel metric/conn subs
+    _s1?.cancel();  _s2?.cancel();  _s3?.cancel();  _s4?.cancel();  _s5?.cancel();
+    _s6?.cancel();  _s7?.cancel();  _s8?.cancel();  _s9?.cancel();  _s10?.cancel();
+
+    // cancel chart subs
+    _sr?.cancel();  _sp?.cancel();  _sy?.cancel();  _sTemp?.cancel();
+
+    super.dispose();
+  }
+
+  String _connLabel(DeviceConnectionState s) {
+    switch (s) {
+      case DeviceConnectionState.connecting:
+        return "Connecting...";
+      case DeviceConnectionState.connected:
+        return "Connected";
+      case DeviceConnectionState.disconnecting:
+        return "Disconnecting...";
+      case DeviceConnectionState.disconnected:
+        return "Disconnected";
+    }
+  }
+
+  Future<void> _scanAndConnect() async {
+    final d = await widget.ble.scanOnce();
+    if (!mounted) return;
+    if (d == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No device advertising the service.")),
+      );
+      return;
+    }
+    setState(() => _id = d.id);
+    await widget.ble.connect(d.id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: ListView(
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header row (status + id)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.bluetooth),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _connLabel(conn),
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              _id == null ? "Not connected" : _id!,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ✅ Overflow-safe actions row
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Chip(
+                        label: Text(
+                          "RSSI $rssi dBm",
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.fade,
+                        ),
+                        avatar: const Icon(Icons.network_cell, size: 16),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _scanAndConnect,
+                        icon: const Icon(Icons.search),
+                        label: const Text("Scan & Connect"),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => widget.ble.disconnect(),
+                        icon: const Icon(Icons.link_off),
+                        label: const Text("Disconnect"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Metric tiles
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _metric(cs, "Roll (°)",   roll.toStringAsFixed(1),   Icons.rotate_90_degrees_ccw),
+              _metric(cs, "Pitch (°)",  pitch.toStringAsFixed(1),  Icons.rotate_90_degrees_cw),
+              _metric(cs, "Yaw (°)",    yaw.toStringAsFixed(1),    Icons.refresh),
+              _metric(cs, "Temp (°C)",  tempC?.toStringAsFixed(1) ?? "—", Icons.thermostat),
+              _metric(cs, "Steps",      steps.toString(),          Icons.directions_walk),
+              _metric(cs, "Cadence",    "${cadence.toStringAsFixed(1)} spm", Icons.speed),
+              _metric(cs, "Stride",     "${stride.toStringAsFixed(2)} m",     Icons.straighten),
+              _metric(cs, "Elevation Δh","${dh.toStringAsFixed(2)} m",        Icons.landscape),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          _info(cs, "MADEPLUS", "Smart shoe analytics & on-device training."),
+        ],
+      ),
+    );
+  }
+
+  Widget _metric(ColorScheme cs, String title, String value, IconData icon) {
+    return SizedBox(
+      width: 240,
+      child: Card(
+        color: cs.surfaceContainerHighest,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(icon),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(value,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _info(ColorScheme cs, String title, String body) {
+    return Card(
+      color: cs.surfaceContainerHigh,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text(body),
+            ]),
+      ),
+    );
+  }
+}

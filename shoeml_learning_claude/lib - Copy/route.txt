@@ -1,0 +1,52 @@
+  // -------- Route preview --------
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Route preview",
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    height: 220,
+                    child: FlutterMap(
+                      key: _mapKey,
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: _track.isNotEmpty
+                            ? _track.first
+                            : const LatLng(0, 0),
+                        initialZoom: 16,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                          userAgentPackageName: "com.example.shoeml",
+                        ),
+                        PolylineLayer(
+                          polylines: [
+                            if (_track.length >= 2)
+                              Polyline(
+                                points: _track,
+                                strokeWidth: 4,
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Distance: ${_formatDistance(_lastDistM)} • "
+                    "Duration: ${_formatDuration(_lastDur)} • "
+                    "Pace: ${_formatPace(_lastDistM, _lastDur)}",
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ),
