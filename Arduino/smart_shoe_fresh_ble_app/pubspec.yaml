@@ -1,0 +1,20 @@
+name: smart_shoe_fresh_ble_app
+description: A Flutter app to display Smart Shoe BLE data (steps, temperature, pressure)
+publish_to: "none" # Remove this line if you plan to publish to pub.dev
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_blue_plus: ^1.35.5
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

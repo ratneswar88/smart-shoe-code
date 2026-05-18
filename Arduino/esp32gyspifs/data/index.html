@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GY-86 Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+    .card { background: white; border-radius: 10px; padding: 20px; margin: 10px auto; max-width: 400px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    h1, h2 { text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>GY-86 Dashboard</h1>
+  <div class="card">
+    <h2>Orientation</h2>
+    <p>Roll: <span id="roll">0</span>°</p>
+    <p>Pitch: <span id="pitch">0</span>°</p>
+    <p>Yaw: <span id="yaw">0</span>°</p>
+  </div>
+  <script>
+    setInterval(() => {
+      fetch("/data")
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("roll").innerText = data.roll.toFixed(2);
+          document.getElementById("pitch").innerText = data.pitch.toFixed(2);
+          document.getElementById("yaw").innerText = data.yaw.toFixed(2);
+        });
+    }, 1000);
+  </script>
+</body>
+</html>

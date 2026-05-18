@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>MadePlus Smart Shoe Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #3143e0, #699c1e);
+      color: #07080d;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      color: #0c0d0b;
+      margin-bottom: 10px;
+    }
+    .card {
+      background: #dbe031;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin: 20px auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 800px;
+    }
+    canvas {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>MadePlus Smart Shoe Dashboard</h1>
+  <p><strong>Date:</strong> <span id="date"></span></p>
+
+  <div class="card">
+    <h3>Orientation (Roll, Pitch, Yaw)</h3>
+    <canvas id="orientationChart" height="200"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>Steps</h3>
+    <canvas id="stepChart" height="200"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>Temperature (°C)</h3>
+    <canvas id="tempChart" height="200"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>Pressure (hPa)</h3>
+    <canvas id="pressureChart" height="200"></canvas>
+  </div>
+
+  <script>
+    document.getElementById("date").innerText = new Date().toLocaleString();
+
+    const chartConfigs = {
+      orientationChart: ["Roll", "Pitch", "Yaw"],
+      stepChart: ["Steps"],
+      tempChart: ["Temperature"],
+      pressureChart: ["Pressure"]
+     
+    };
+
+    const charts = {};
+
+    for (const [id, labels] of Object.entries(chartConfigs)) {
+      charts[id] = new Chart(document.getElementById(id), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: labels.map((label, i) => ({
+            label,
+            data: [],
+            borderColor: ['#e53935', '#43a047', '#1e88e5', '#fb8c00', '#8e24aa'][i],
+            fill: false,
+            tension: 0.2
+          }))
+        },
+        options: {
+          responsive: true,
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: { beginAtZero: false }
+          }
+        }
+      });
+    }
+
+    function updateCharts(data) {
+      const time = new Date().toLocaleTimeString();
+      const maxPoints = 30;
+
+      const pushData = (chart, values) => {
+        chart.data.labels.push(time);
+        chart.data.datasets.forEach((ds, i) => ds.data.push(values[i]));
+        if (chart.data.labels.length > maxPoints) {
+          chart.data.labels.shift();
+          chart.data.datasets.forEach(ds => ds.data.shift());
+        }
+        chart.update();
+      };
+
+      pushData(charts.orientationChart, [data.roll, data.pitch, data.yaw]);
+      pushData(charts.stepChart, [data.steps]);
+      pushData(charts.tempChart, [data.temperature]);
+      pushData(charts.pressureChart, [data.pressure]);
+     
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch('/data');
+        if (!res.ok) throw new Error('Fetch failed');
+        const json = await res.json();
+        updateCharts(json);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    setInterval(fetchData, 1000);
+  </script>
+</body>
+</html>
