@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carrier PCB — Smart Shoe Wearable</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --pcb: #1a3a1a;
+  --pcb-light: #1f4a1f;
+  --silk: #e8f5e8;
+  --copper: #c8621a;
+  --copper-hi: #e8842a;
+  --gold: #d4a017;
+  --green-led: #00ff44;
+  --trace-5v: #e03030;
+  --trace-3v3: #e07020;
+  --trace-gnd: #444;
+  --trace-i2c: #30aaff;
+  --trace-sig: #aaffaa;
+  --bg: #0d1a0d;
+  --panel: #111a11;
+  --border: rgba(0,255,68,0.15);
+  --text: #c8e8c8;
+  --text-dim: rgba(200,232,200,0.5);
+  --accent: #00ff44;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+.hdr {
+  background: linear-gradient(90deg, #000 0%, #0a1f0a 60%, #0d1a0d 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hdr-left h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.hdr-left p {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+.hdr-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  padding: 3px 10px;
+  border-radius: 2px;
+  letter-spacing: 1px;
+  border: 1px solid;
+}
+
+.tag-green { color: var(--accent); border-color: var(--accent); background: rgba(0,255,68,0.07); }
+.tag-orange { color: var(--copper-hi); border-color: var(--copper); background: rgba(200,98,26,0.1); }
+.tag-blue { color: #60c0ff; border-color: #3080c0; background: rgba(48,128,192,0.08); }
+
+/* ── WARNING BANNER ── */
+.warn-banner {
+  background: rgba(220,100,0,0.12);
+  border: 1px solid rgba(220,120,0,0.4);
+  border-left: 4px solid #e07020;
+  padding: 14px 32px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.warn-banner .icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+.warn-banner p { font-size: 0.87rem; line-height: 1.65; color: rgba(255,220,160,0.9); }
+.warn-banner strong { color: #e09050; }
+
+/* ── MAIN LAYOUT ── */
+.main {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 0;
+  min-height: calc(100vh - 120px);
+}
+
+/* ── PCB CANVAS AREA ── */
+.canvas-area {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.canvas-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* ── PCB SVG BOARD ── */
+.pcb-wrapper {
+  background: #0a0f0a;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 20px;
+  position: relative;
+}
+
+.pcb-wrapper svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* tooltip */
+.tooltip {
+  position: absolute;
+  background: rgba(0,5,0,0.97);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 10px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  line-height: 1.7;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+  max-width: 220px;
+  white-space: pre-line;
+}
+
+.tooltip.show { opacity: 1; }
+
+/* ── LAYER TOGGLE ── */
+.layer-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.layer-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  padding: 5px 14px;
+  border-radius: 2px;
+  border: 1px solid;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+  background: transparent;
+}
+
+.layer-btn.active-5v { color: var(--trace-5v); border-color: var(--trace-5v); background: rgba(224,48,48,0.12); }
+.layer-btn.active-3v3 { color: var(--trace-3v3); border-color: var(--trace-3v3); background: rgba(224,112,32,0.12); }
+.layer-btn.active-gnd { color: #888; border-color: #555; background: rgba(80,80,80,0.12); }
+.layer-btn.active-i2c { color: var(--trace-i2c); border-color: var(--trace-i2c); background: rgba(48,170,255,0.1); }
+.layer-btn.active-sig { color: var(--trace-sig); border-color: #60b060; background: rgba(170,255,170,0.07); }
+.layer-btn.inactive { opacity: 0.28; filter: grayscale(0.6); }
+.layer-btn:hover { opacity: 1 !important; filter: none !important; }
+
+/* ── SIZE COMPARISON TABLE ── */
+.size-table {
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.size-table h3 {
+  font-size: 0.75rem;
+  font-family: 'Share Tech Mono', monospace;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+th {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+}
+td {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(0,255,68,0.05);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+}
+tr:hover td { background: rgba(0,255,68,0.03); }
+
+.sz-bar {
+  height: 6px;
+  border-radius: 1px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  padding: 24px 20px;
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+}
+
+.sb-section { margin-bottom: 28px; }
+
+.sb-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Connection list */
+.conn-item {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+}
+
+.conn-from { color: var(--copper-hi); text-align: right; }
+.conn-arrow {
+  font-size: 12px;
+  text-align: center;
+}
+.conn-to { color: var(--accent); }
+
+.conn-item.net-5v .conn-arrow { color: var(--trace-5v); }
+.conn-item.net-3v3 .conn-arrow { color: var(--trace-3v3); }
+.conn-item.net-gnd .conn-arrow { color: #666; }
+.conn-item.net-i2c .conn-arrow { color: var(--trace-i2c); }
+.conn-item.net-sig .conn-arrow { color: var(--trace-sig); }
+
+.net-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 1px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+
+.net-5v-label { background: rgba(224,48,48,0.15); color: var(--trace-5v); border: 1px solid rgba(224,48,48,0.3); }
+.net-3v3-label { background: rgba(224,112,32,0.15); color: var(--trace-3v3); border: 1px solid rgba(224,112,32,0.3); }
+.net-gnd-label { background: rgba(80,80,80,0.2); color: #999; border: 1px solid #444; }
+.net-i2c-label { background: rgba(48,170,255,0.1); color: var(--trace-i2c); border: 1px solid rgba(48,170,255,0.3); }
+.net-sig-label { background: rgba(170,255,170,0.08); color: var(--trace-sig); border: 1px solid rgba(170,255,170,0.25); }
+
+/* Passive components */
+.passive-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(0,255,68,0.06);
+  font-size: 0.82rem;
+}
+
+.p-ref {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--gold);
+  min-width: 28px;
+}
+
+.p-val {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: right;
+  font-size: 9px;
+}
+
+/* Socket indicators */
+.socket-card {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.socket-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.socket-detail {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+.socket-card.pb { border-color: rgba(200,98,26,0.4); }
+.socket-card.pb .socket-name { color: var(--copper-hi); }
+.socket-card.esp { border-color: rgba(0,255,68,0.3); }
+.socket-card.esp .socket-name { color: var(--accent); }
+.socket-card.gy { border-color: rgba(48,170,255,0.3); }
+.socket-card.gy .socket-name { color: #60c0ff; }
+
+@media (max-width: 820px) {
+  .main { grid-template-columns: 1fr; }
+  .sidebar { max-height: none; border-left: none; border-top: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <h1>Smart Shoe Carrier PCB — Rev A</h1>
+    <p>POWERBOOST 500C · ESP32-S3 ZERO · GY-86 · PLUG-AND-PLAY CARRIER</p>
+  </div>
+  <div class="hdr-tags">
+    <span class="tag tag-green">75mm × 35mm</span>
+    <span class="tag tag-orange">1.6mm FR4</span>
+    <span class="tag tag-blue">2-LAYER</span>
+    <span class="tag tag-green">ALL CONNECTIONS PRE-ROUTED</span>
+  </div>
+</div>
+
+<div class="warn-banner">
+  <span class="icon">📐</span>
+  <p>
+    <strong>Why not 40×20mm?</strong> — PowerBoost 500C is <strong>35.6 × 22.9mm</strong> by itself. ESP32-S3 Zero is <strong>25.4 × 25.4mm</strong>. GY-86 is <strong>20 × 15mm</strong>. They cannot physically share a 40×20mm board placed side by side. 
+    The <strong>minimum viable carrier is 75mm × 35mm</strong> with modules arranged in a single row. Everything is pre-routed — you simply drop each module into its socket and the board handles all connections.
+  </p>
+</div>
+
+<div class="main">
+
+  <!-- ── PCB CANVAS ── -->
+  <div class="canvas-area">
+    <div>
+      <div class="canvas-label">▶ Interactive PCB Layout — hover components for details</div>
+      <div class="pcb-wrapper" id="pcbWrapper">
+        <div class="tooltip" id="tooltip"></div>
+
+        <svg viewBox="0 0 750 370" xmlns="http://www.w3.org/2000/svg" id="pcbSvg">
+          <defs>
+            <!-- PCB green substrate -->
+            <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
+              <path d="M10 0L0 0 0 10" fill="none" stroke="rgba(0,200,50,0.07)" stroke-width="0.5"/>
+            </pattern>
+
+            <!-- Copper pad texture -->
+            <radialGradient id="padGrad" cx="50%" cy="35%" r="60%">
+              <stop offset="0%" stop-color="#e8a040"/>
+              <stop offset="100%" stop-color="#b06010"/>
+            </radialGradient>
+
+            <!-- Via gradient -->
+            <radialGradient id="viaGrad" cx="50%" cy="40%" r="60%">
+              <stop offset="0%" stop-color="#d4a017"/>
+              <stop offset="100%" stop-color="#8a6000"/>
+            </radialGradient>
+
+            <!-- Module drop shadow -->
+            <filter id="modShadow" x="-5%" y="-5%" width="115%" height="115%">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.6)"/>
+            </filter>
+
+            <!-- Glow filter -->
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+
+            <!-- Copper trace glow -->
+            <filter id="traceGlow">
+              <feGaussianBlur stdDeviation="1.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- ── PCB SUBSTRATE ── -->
+          <rect x="20" y="20" width="710" height="330" rx="8" fill="#1a3a1a" stroke="#2a5a2a" stroke-width="2"/>
+          <rect x="20" y="20" width="710" height="330" rx="8" fill="url(#grid)"/>
+
+          <!-- Board outline silkscreen -->
+          <rect x="20" y="20" width="710" height="330" rx="8" fill="none" stroke="#3a6a3a" stroke-width="1" stroke-dasharray="4,3" opacity="0.4"/>
+
+          <!-- Mounting holes (4 corners) -->
+          <circle cx="42" cy="42" r="6" fill="#0d1a0d" stroke="#2a4a2a" stroke-width="1.5"/>
+          <circle cx="42" cy="42" r="3" fill="url(#viaGrad)"/>
+          <circle cx="708" cy="42" r="6" fill="#0d1a0d" stroke="#2a4a2a" stroke-width="1.5"/>
+          <circle cx="708" cy="42" r="3" fill="url(#viaGrad)"/>
+          <circle cx="42" cy="328" r="6" fill="#0d1a0d" stroke="#2a4a2a" stroke-width="1.5"/>
+          <circle cx="42" cy="328" r="3" fill="url(#viaGrad)"/>
+          <circle cx="708" cy="328" r="6" fill="#0d1a0d" stroke="#2a4a2a" stroke-width="1.5"/>
+          <circle cx="708" cy="328" r="3" fill="url(#viaGrad)"/>
+
+          <!-- Silkscreen: board title -->
+          <text x="365" y="345" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(220,255,220,0.3)" letter-spacing="2">SMART SHOE CARRIER v1.0 · 75mm × 35mm · 2-LAYER FR4 1.6mm</text>
+
+          <!-- ═══════════════════════════════════════════ -->
+          <!-- POWER TRACES (5V) — Red layer -->
+          <!-- PowerBoost 5V pin → ESP32 5V -->
+          <g class="trace-layer" id="layer-5v">
+            <!-- Main 5V bus trace (thick) -->
+            <line x1="240" y1="295" x2="310" y2="295" stroke="#e03030" stroke-width="5" stroke-linecap="round" filter="url(#traceGlow)" opacity="0.9"/>
+            <!-- Label -->
+            <text x="275" y="290" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#ff6060" opacity="0.8">+5V</text>
+          </g>
+
+          <!-- GND traces — gray -->
+          <g class="trace-layer" id="layer-gnd">
+            <line x1="255" y1="310" x2="310" y2="310" stroke="#666" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+            <!-- GND plane indicator strip -->
+            <rect x="20" y="355" width="710" height="0" fill="rgba(100,100,100,0.08)"/>
+            <text x="275" y="306" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#888" opacity="0.8">GND</text>
+          </g>
+
+          <!-- 3V3 traces — Orange (ESP32 3V3 → GY86) -->
+          <g class="trace-layer" id="layer-3v3">
+            <line x1="510" y1="295" x2="580" y2="295" stroke="#e07020" stroke-width="3.5" stroke-linecap="round" filter="url(#traceGlow)" opacity="0.85"/>
+            <line x1="510" y1="310" x2="580" y2="310" stroke="#666" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+            <text x="545" y="290" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#e07020" opacity="0.8">3V3</text>
+          </g>
+
+          <!-- I2C traces — Blue (ESP32 GPIO8/9 → GY86) -->
+          <g class="trace-layer" id="layer-i2c">
+            <!-- SDA -->
+            <path d="M 510 230 Q 545 230 545 250 L 545 260 Q 545 270 565 270 L 580 270" fill="none" stroke="#30aaff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#traceGlow)" opacity="0.85"/>
+            <!-- SCL -->
+            <path d="M 510 250 Q 548 250 548 260 L 548 265 Q 548 280 568 280 L 580 280" fill="none" stroke="#30aaff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#traceGlow)" opacity="0.85"/>
+            <!-- Pull-up resistor location via -->
+            <circle cx="545" cy="265" r="4" fill="url(#viaGrad)" stroke="#c8a010" stroke-width="1"/>
+            <text x="538" y="259" font-family="Share Tech Mono" font-size="6" fill="#d4a017" opacity="0.9">R3/R4</text>
+            <text x="498" y="226" font-family="Share Tech Mono" font-size="6.5" fill="#30aaff" opacity="0.7">SDA</text>
+            <text x="498" y="246" font-family="Share Tech Mono" font-size="6.5" fill="#30aaff" opacity="0.7">SCL</text>
+          </g>
+
+          <!-- LBO signal trace -->
+          <g class="trace-layer" id="layer-sig">
+            <path d="M 245 250 Q 245 235 310 235" fill="none" stroke="#aaffaa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+            <!-- R1/R2 voltage divider location -->
+            <circle cx="262" cy="243" r="4" fill="url(#viaGrad)" stroke="#c8a010" stroke-width="1"/>
+            <text x="252" y="235" font-family="Share Tech Mono" font-size="6" fill="#d4a017" opacity="0.9">R1/R2</text>
+            <text x="250" y="255" font-family="Share Tech Mono" font-size="6" fill="#aaffaa" opacity="0.7">LBO→GPIO5</text>
+          </g>
+
+          <!-- ═══════════════════════════════════════════ -->
+          <!-- GND copper pour indication (hatching) -->
+          <rect x="21" y="21" width="708" height="328" rx="7" fill="none" stroke="rgba(80,80,80,0.12)" stroke-width="0.5" stroke-dasharray="2,4"/>
+          <text x="370" y="60" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(100,100,100,0.25)" letter-spacing="1">GND COPPER POUR — BOTTOM LAYER</text>
+
+          <!-- ═══════════════════════════════════════════ -->
+          <!-- PASSIVE COMPONENTS -->
+
+          <!-- C1 (100µF on 5V) -->
+          <g id="comp-c1" class="comp" style="cursor:pointer"
+             data-tip="C1 — 100µF 10V Electrolytic&#10;5V bulk decoupling&#10;Near PowerBoost 5V pad">
+            <rect x="265" y="268" width="18" height="28" rx="2" fill="#333" stroke="#c8a010" stroke-width="1.2"/>
+            <rect x="267" y="270" width="14" height="8" rx="1" fill="#444"/>
+            <line x1="274" y1="296" x2="274" y2="303" stroke="#c8a010" stroke-width="1.5"/>
+            <line x1="279" y1="296" x2="279" y2="303" stroke="#c8a010" stroke-width="1.5"/>
+            <text x="274" y="283" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="#d4a017">C1</text>
+          </g>
+
+          <!-- C2 (10µF on 3V3) -->
+          <g id="comp-c2" class="comp" style="cursor:pointer"
+             data-tip="C2 — 10µF 6.3V Ceramic&#10;3V3 rail decoupling&#10;Near ESP32-S3 3V3 pad">
+            <rect x="518" y="278" width="14" height="20" rx="1.5" fill="#334" stroke="#30aaff" stroke-width="1"/>
+            <text x="525" y="290" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="#60c0ff">C2</text>
+          </g>
+
+          <!-- C3 (100nF on GY-86 VCC) -->
+          <g id="comp-c3" class="comp" style="cursor:pointer"
+             data-tip="C3 — 100nF Ceramic X7R&#10;GY-86 VCC decoupling&#10;Place as close to VCC pin as possible">
+            <rect x="588" y="278" width="12" height="16" rx="1.5" fill="#334" stroke="#30aaff" stroke-width="1"/>
+            <text x="594" y="288" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="#60c0ff">C3</text>
+          </g>
+
+          <!-- L1 Ferrite bead (on 3V3 → GY86) -->
+          <g id="comp-l1" class="comp" style="cursor:pointer"
+             data-tip="L1 — Ferrite Bead 600Ω@100MHz&#10;Filters switching noise from PowerBoost&#10;Protects HMC5883L magnetometer">
+            <rect x="534" y="289" width="20" height="9" rx="2" fill="#3a2a1a" stroke="#c8a010" stroke-width="1.2"/>
+            <rect x="537" y="291" width="4" height="5" rx="0.5" fill="#c88020"/>
+            <rect x="543" y="291" width="4" height="5" rx="0.5" fill="#c88020"/>
+            <rect x="549" y="291" width="4" height="5" rx="0.5" fill="#c88020"/>
+            <text x="544" y="307" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="#d4a017">L1</text>
+          </g>
+
+          <!-- SW1 power switch -->
+          <g id="comp-sw1" class="comp" style="cursor:pointer"
+             data-tip="SW1 — SPDT Slide Switch&#10;Controls PowerBoost EN pin&#10;Open = boost ON, Closed = boost OFF&#10;Signal level only — no battery current">
+            <rect x="130" y="310" width="36" height="18" rx="3" fill="#222" stroke="#c8a010" stroke-width="1.5"/>
+            <rect x="135" y="314" width="12" height="10" rx="1" fill="#c87830"/>
+            <line x1="130" y1="319" x2="122" y2="319" stroke="#c8a010" stroke-width="1.5"/>
+            <line x1="166" y1="319" x2="174" y2="319" stroke="#c8a010" stroke-width="1.5"/>
+            <text x="148" y="306" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#e08040">SW1</text>
+            <text x="148" y="338" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="rgba(200,150,60,0.6)">PWR EN</text>
+          </g>
+
+          <!-- JST connector -->
+          <g id="comp-j1" class="comp" style="cursor:pointer"
+             data-tip="J1 — JST PH 2-pin LiPo Connector&#10;Connects battery to PowerBoost BAT pin&#10;Check polarity! Red=+ Black=-">
+            <rect x="55" y="200" width="28" height="40" rx="2" fill="#1a1a2a" stroke="#c8a010" stroke-width="1.5"/>
+            <rect x="60" y="206" width="8" height="28" rx="1" fill="#e03030" opacity="0.8"/>
+            <rect x="71" y="206" width="8" height="28" rx="1" fill="#333" opacity="0.8"/>
+            <text x="69" y="254" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#e08040">J1</text>
+            <text x="69" y="263" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="rgba(200,150,60,0.6)">LIPO</text>
+          </g>
+
+          <!-- ═══════════════════════════════════════════ -->
+          <!-- SOCKET HEADER PADS (2.54mm pin rows) -->
+
+          <!-- PowerBoost socket pads (left zone) -->
+          <g>
+            <!-- Top row -->
+            <text x="175" y="92" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(200,130,50,0.5)" letter-spacing="1">POWERBOOST 500C SOCKET</text>
+            <!-- Pad rows -->
+            <g id="pb-pads-top">
+              <circle cx="107" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="121" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="135" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="149" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="163" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="177" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="191" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="205" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="219" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="233" cy="102" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+            </g>
+            <g id="pb-pads-bot">
+              <circle cx="107" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="121" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="135" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="149" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="163" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="177" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="191" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="205" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="219" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+              <circle cx="233" cy="268" r="4.5" fill="url(#padGrad)" stroke="#8a4010" stroke-width="0.8"/>
+            </g>
+            <!-- Pin labels -->
+            <text x="107" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">GND</text>
+            <text x="121" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">BAT</text>
+            <text x="135" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">EN</text>
+            <text x="149" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,100,100,0.8)">5V</text>
+            <text x="163" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">GND</text>
+            <text x="177" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">LBO</text>
+            <text x="191" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">USB</text>
+            <!-- Zone outline -->
+            <rect x="90" y="88" width="162" height="195" rx="4" fill="rgba(200,98,26,0.06)" stroke="rgba(200,98,26,0.3)" stroke-width="1" stroke-dasharray="5,3"/>
+            <text x="171" y="275" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="rgba(200,130,50,0.4)">35.6 × 22.9mm</text>
+          </g>
+
+          <!-- Module graphic: PowerBoost -->
+          <g id="module-pb" class="comp" style="cursor:pointer"
+             data-tip="Adafruit PowerBoost 500C&#10;35.6 × 22.9mm&#10;TPS61090 boost converter&#10;5.2V out, 500mA+&#10;Insert into left socket">
+            <rect x="96" y="110" width="148" height="152" rx="4" fill="#1a2f10" stroke="#c8621a" stroke-width="1.8" filter="url(#modShadow)"/>
+            <!-- Component silhouettes -->
+            <rect x="104" y="118" width="40" height="28" rx="2" fill="#0f1f08" stroke="#3a5a20" stroke-width="1"/>
+            <rect x="152" y="118" width="30" height="20" rx="2" fill="#0f1f08" stroke="#3a5a20" stroke-width="1"/>
+            <rect x="190" y="118" width="46" height="36" rx="2" fill="#0f1f08" stroke="#3a5a20" stroke-width="1"/>
+            <!-- USB jack -->
+            <rect x="96" y="148" width="12" height="20" rx="1" fill="#333" stroke="#888" stroke-width="1"/>
+            <!-- JST -->
+            <rect x="96" y="176" width="12" height="24" rx="1" fill="#222" stroke="#888" stroke-width="1"/>
+            <!-- LEDs -->
+            <circle cx="200" cy="168" r="4" fill="#ffff00" opacity="0.6"/>
+            <circle cx="215" cy="168" r="4" fill="#00ff00" opacity="0.6"/>
+            <circle cx="230" cy="168" r="4" fill="#ff4400" opacity="0.5"/>
+            <!-- Label -->
+            <text x="170" y="215" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#c8a070" font-weight="bold">PowerBoost</text>
+            <text x="170" y="226" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(200,160,80,0.6)">500C</text>
+            <!-- Hover highlight -->
+            <rect x="96" y="110" width="148" height="152" rx="4" fill="transparent" stroke="transparent" stroke-width="6" class="hover-zone"/>
+          </g>
+
+          <!-- ESP32-S3 Zero socket pads -->
+          <g>
+            <text x="413" y="92" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(0,200,70,0.5)" letter-spacing="1">ESP32-S3 ZERO SOCKET</text>
+            <g id="esp-pads-top">
+              <circle cx="325" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="339" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="353" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="367" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="381" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="395" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="409" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="423" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="437" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="451" cy="102" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+            </g>
+            <g id="esp-pads-bot">
+              <circle cx="325" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="339" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="353" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="367" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="381" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="395" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="409" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="423" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="437" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+              <circle cx="451" cy="268" r="4.5" fill="url(#padGrad)" stroke="#408040" stroke-width="0.8"/>
+            </g>
+            <text x="325" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(100,220,100,0.8)">5V</text>
+            <text x="339" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">GND</text>
+            <text x="353" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">3V3</text>
+            <text x="367" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(100,180,255,0.8)">G8</text>
+            <text x="381" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(100,180,255,0.8)">G9</text>
+            <text x="395" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">G5</text>
+            <text x="409" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">G4</text>
+            <!-- Zone outline -->
+            <rect x="312" y="88" width="152" height="195" rx="4" fill="rgba(0,200,70,0.05)" stroke="rgba(0,200,70,0.25)" stroke-width="1" stroke-dasharray="5,3"/>
+            <text x="388" y="275" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="rgba(0,200,70,0.3)">25.4 × 25.4mm</text>
+          </g>
+
+          <!-- Module: ESP32-S3 Zero -->
+          <g id="module-esp" class="comp" style="cursor:pointer"
+             data-tip="Waveshare ESP32-S3 Zero&#10;25.4 × 25.4mm&#10;Dual-core Xtensa LX7 @ 240MHz&#10;BLE + WiFi · USB-C on top edge&#10;→ Antenna faces board edge!">
+            <rect x="318" y="110" width="140" height="152" rx="4" fill="#0f280f" stroke="#00cc44" stroke-width="1.8" filter="url(#modShadow)"/>
+            <!-- Chip -->
+            <rect x="360" y="130" width="56" height="56" rx="3" fill="#1a1a2a" stroke="#3a3a5a" stroke-width="1.5"/>
+            <text x="388" y="161" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(200,200,255,0.7)">ESP32-S3</text>
+            <!-- USB-C -->
+            <rect x="348" y="110" width="26" height="8" rx="2" fill="#444" stroke="#888" stroke-width="1"/>
+            <!-- Antenna keepout -->
+            <rect x="440" y="110" width="18" height="60" rx="2" fill="rgba(255,100,0,0.1)" stroke="rgba(255,100,0,0.4)" stroke-width="1" stroke-dasharray="3,2"/>
+            <text x="449" y="145" text-anchor="middle" font-family="Share Tech Mono" font-size="5" fill="rgba(255,120,0,0.7)" transform="rotate(-90,449,145)">ANTENNA</text>
+            <!-- RGB LED -->
+            <circle cx="330" cy="175" r="4" fill="#ff00ff" opacity="0.5"/>
+            <!-- Label -->
+            <text x="375" y="215" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#60ff80" font-weight="bold">ESP32-S3</text>
+            <text x="375" y="226" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(100,255,120,0.6)">Zero</text>
+          </g>
+
+          <!-- GY-86 socket pads -->
+          <g>
+            <text x="620" y="92" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(48,170,255,0.5)" letter-spacing="1">GY-86 SOCKET</text>
+            <g id="gy-pads">
+              <circle cx="574" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+              <circle cx="588" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+              <circle cx="602" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+              <circle cx="616" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+              <circle cx="630" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+              <circle cx="644" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+              <circle cx="658" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+              <circle cx="672" cy="102" r="4.5" fill="url(#padGrad)" stroke="#204080" stroke-width="0.8"/>
+            </g>
+            <text x="574" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,150,60,0.8)">VCC</text>
+            <text x="588" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(220,220,220,0.5)">GND</text>
+            <text x="602" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(100,180,255,0.8)">SDA</text>
+            <text x="616" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(100,180,255,0.8)">SCL</text>
+            <text x="630" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,200,200,0.5)">DRDY</text>
+            <text x="644" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,200,200,0.4)">NC</text>
+            <text x="658" y="117" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(200,200,200,0.4)">NC</text>
+            <!-- Zone outline -->
+            <rect x="562" y="88" width="122" height="195" rx="4" fill="rgba(48,170,255,0.05)" stroke="rgba(48,170,255,0.25)" stroke-width="1" stroke-dasharray="5,3"/>
+            <text x="623" y="275" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="rgba(48,170,255,0.3)">20.0 × 15.3mm</text>
+          </g>
+
+          <!-- Module: GY-86 -->
+          <g id="module-gy" class="comp" style="cursor:pointer"
+             data-tip="GY-86 10-DOF Module&#10;20.0 × 15.3mm&#10;MPU6050 · HMC5883L · MS5611&#10;I²C @ 0x68 · 0x1E · 0x77&#10;→ Keep 20mm from PowerBoost!">
+            <rect x="568" y="110" width="110" height="152" rx="4" fill="#0f1828" stroke="#3080c0" stroke-width="1.8" filter="url(#modShadow)"/>
+            <!-- Chips -->
+            <rect x="578" y="122" width="44" height="44" rx="2" fill="#1a1a28" stroke="#284060" stroke-width="1"/>
+            <text x="600" y="148" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="rgba(100,160,255,0.7)">MPU6050</text>
+            <rect x="630" y="122" width="40" height="28" rx="2" fill="#1a1a28" stroke="#284060" stroke-width="1"/>
+            <text x="650" y="139" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(100,160,255,0.6)">HMC</text>
+            <text x="650" y="147" text-anchor="middle" font-family="Share Tech Mono" font-size="5.5" fill="rgba(100,160,255,0.6)">5883L</text>
+            <rect x="578" y="172" width="40" height="30" rx="2" fill="#1a1a28" stroke="#284060" stroke-width="1"/>
+            <text x="598" y="190" text-anchor="middle" font-family="Share Tech Mono" font-size="6" fill="rgba(100,160,255,0.6)">MS5611</text>
+            <!-- Label -->
+            <text x="623" y="215" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#60b0ff" font-weight="bold">GY-86</text>
+            <text x="623" y="226" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(80,150,255,0.6)">10-DOF IMU</text>
+          </g>
+
+          <!-- ═════════════ VIA ARRAY (connecting traces between layers) ═════════ -->
+          <!-- 5V via -->
+          <circle cx="310" cy="295" r="5" fill="url(#viaGrad)" stroke="#8a6000" stroke-width="1.2"/>
+          <circle cx="310" cy="295" r="2" fill="#0a0a00"/>
+          <!-- GND via -->
+          <circle cx="310" cy="310" r="5" fill="#555" stroke="#333" stroke-width="1"/>
+          <circle cx="310" cy="310" r="2" fill="#0a0a00"/>
+          <!-- 3V3 via -->
+          <circle cx="510" cy="295" r="4.5" fill="url(#viaGrad)" stroke="#8a6000" stroke-width="1"/>
+          <circle cx="510" cy="295" r="2" fill="#0a0a00"/>
+
+          <!-- Distance annotations -->
+          <line x1="96" y1="80" x2="244" y2="80" stroke="rgba(200,130,50,0.5)" stroke-width="1" marker-end="url(#arrow-orange)"/>
+          <text x="170" y="76" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(200,130,50,0.7)">35.6mm</text>
+
+          <line x1="318" y1="80" x2="458" y2="80" stroke="rgba(0,200,70,0.5)" stroke-width="1"/>
+          <text x="388" y="76" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(0,200,70,0.7)">25.4mm</text>
+
+          <line x1="568" y1="80" x2="678" y2="80" stroke="rgba(48,170,255,0.5)" stroke-width="1"/>
+          <text x="623" y="76" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="rgba(48,170,255,0.7)">20.0mm</text>
+
+          <!-- Total board dimension -->
+          <line x1="20" y1="36" x2="730" y2="36" stroke="rgba(0,255,68,0.3)" stroke-width="1"/>
+          <text x="375" y="32" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="rgba(0,255,68,0.6)">← CARRIER PCB: 75mm → (vs. your 40mm request — physically impossible)</text>
+
+        </svg>
+      </div>
+    </div>
+
+    <!-- Layer toggle -->
+    <div class="layer-controls">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:2px;align-self:center;">SHOW LAYERS:</span>
+      <button class="layer-btn active-5v" onclick="toggleLayer('5v', this)">+5V</button>
+      <button class="layer-btn active-3v3" onclick="toggleLayer('3v3', this)">+3V3</button>
+      <button class="layer-btn active-gnd" onclick="toggleLayer('gnd', this)">GND</button>
+      <button class="layer-btn active-i2c" onclick="toggleLayer('i2c', this)">I²C</button>
+      <button class="layer-btn active-sig" onclick="toggleLayer('sig', this)">SIGNALS</button>
+    </div>
+
+    <!-- Size comparison -->
+    <div class="size-table">
+      <h3>▸ Module Size vs Your 40mm Request</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Module</th>
+            <th>Width</th>
+            <th>Height</th>
+            <th>Fits in 40mm?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PowerBoost 500C</td>
+            <td><div class="sz-bar" style="width:71px;background:var(--copper-hi);"></div>35.6mm</td>
+            <td>22.9mm</td>
+            <td style="color:#ff6060">✗ Already 35.6mm wide alone</td>
+          </tr>
+          <tr>
+            <td>ESP32-S3 Zero</td>
+            <td><div class="sz-bar" style="width:50px;background:var(--accent);"></div>25.4mm</td>
+            <td>25.4mm</td>
+            <td style="color:#ff6060">✗ Total ≥ 61mm with PB alone</td>
+          </tr>
+          <tr>
+            <td>GY-86</td>
+            <td><div class="sz-bar" style="width:40px;background:#30aaff;"></div>20.0mm</td>
+            <td>15.3mm</td>
+            <td style="color:#ff6060">✗ Total ≥ 81mm for all three</td>
+          </tr>
+          <tr style="background:rgba(0,255,68,0.05)">
+            <td style="color:var(--accent)">✅ This Carrier PCB</td>
+            <td colspan="2" style="color:var(--accent)"><strong>75mm × 35mm × 1.6mm</strong></td>
+            <td style="color:var(--accent)">Minimum viable · All pre-routed</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+
+    <div class="sb-section">
+      <div class="sb-title">▸ Module Sockets</div>
+      <div class="socket-card pb">
+        <div class="socket-name">PowerBoost 500C</div>
+        <div class="socket-detail">
+          2× 10-pin 2.54mm female socket<br>
+          LEFT zone of carrier board<br>
+          Micro-USB → faces board left edge<br>
+          JST battery → external pigtail<br>
+          Pins: GND·BAT·EN·5V·GND·LBO·USB
+        </div>
+      </div>
+      <div class="socket-card esp">
+        <div class="socket-name">ESP32-S3 Zero</div>
+        <div class="socket-detail">
+          2× 9-pin 2.54mm female socket<br>
+          CENTER zone of carrier board<br>
+          USB-C → faces board top edge<br>
+          Antenna end → faces board right edge<br>
+          Pins: 5V·GND·3V3·G8·G9·G5·G4·TX·RX
+        </div>
+      </div>
+      <div class="socket-card gy">
+        <div class="socket-name">GY-86 IMU Module</div>
+        <div class="socket-detail">
+          1× 8-pin 2.54mm female socket<br>
+          RIGHT zone of carrier board<br>
+          Mount flat, level to carrier board<br>
+          ≥20mm from PowerBoost zone<br>
+          Pins: VCC·GND·SDA·SCL·DRDY·NC·NC·NC
+        </div>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">▸ Pre-Routed Connections</div>
+
+      <span class="net-label net-5v-label">+5V NET</span>
+      <div class="conn-item net-5v">
+        <span class="conn-from">PB: 5V</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">ESP32: 5V</span>
+      </div>
+
+      <span class="net-label net-gnd-label" style="margin-top:8px;display:inline-block">GND NET</span>
+      <div class="conn-item net-gnd">
+        <span class="conn-from">PB: GND</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">ESP32: GND</span>
+      </div>
+      <div class="conn-item net-gnd">
+        <span class="conn-from">ESP32: GND</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">GY86: GND</span>
+      </div>
+
+      <span class="net-label net-3v3-label" style="margin-top:8px;display:inline-block">+3V3 NET</span>
+      <div class="conn-item net-3v3">
+        <span class="conn-from">ESP32: 3V3</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">GY86: VCC</span>
+      </div>
+
+      <span class="net-label net-i2c-label" style="margin-top:8px;display:inline-block">I²C NET</span>
+      <div class="conn-item net-i2c">
+        <span class="conn-from">ESP32: GPIO8</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">GY86: SDA</span>
+      </div>
+      <div class="conn-item net-i2c">
+        <span class="conn-from">ESP32: GPIO9</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">GY86: SCL</span>
+      </div>
+
+      <span class="net-label net-sig-label" style="margin-top:8px;display:inline-block">SIGNAL NET</span>
+      <div class="conn-item net-sig">
+        <span class="conn-from">PB: LBO</span>
+        <span class="conn-arrow">─÷▶</span>
+        <span class="conn-to">ESP32: GPIO5</span>
+      </div>
+      <div class="conn-item net-sig">
+        <span class="conn-from">PB: EN</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">SW1 → GND</span>
+      </div>
+      <div class="conn-item net-sig">
+        <span class="conn-from">GY86: DRDY</span>
+        <span class="conn-arrow">──▶</span>
+        <span class="conn-to">ESP32: GPIO4</span>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">▸ On-Board Passives (SMD)</div>
+      <div class="passive-item">
+        <span class="p-ref">R1</span>
+        <span>100kΩ 1%</span>
+        <span class="p-val">0603 · LBO div upper</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">R2</span>
+        <span>150kΩ 1%</span>
+        <span class="p-val">0603 · LBO div lower</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">R3</span>
+        <span>4.7kΩ</span>
+        <span class="p-val">0603 · I²C SDA pull-up</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">R4</span>
+        <span>4.7kΩ</span>
+        <span class="p-val">0603 · I²C SCL pull-up</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">C1</span>
+        <span>100µF/10V</span>
+        <span class="p-val">D8 · 5V bulk</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">C2</span>
+        <span>10µF/6.3V</span>
+        <span class="p-val">0805 · 3V3 bulk</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">C3–C5</span>
+        <span>100nF/10V</span>
+        <span class="p-val">0402 · HF decoupling ×3</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">L1</span>
+        <span>Ferrite bead</span>
+        <span class="p-val">0603 · 3V3→GY86 filter</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">SW1</span>
+        <span>SPDT slide</span>
+        <span class="p-val">Edge mount · EN ctrl</span>
+      </div>
+      <div class="passive-item">
+        <span class="p-ref">J1</span>
+        <span>JST PH 2-pin</span>
+        <span class="p-val">LiPo battery input</span>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-title">▸ Fabrication Spec</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);line-height:2.1;">
+        <span style="color:var(--accent);">Board size:</span> 75 × 35mm<br>
+        <span style="color:var(--accent);">Thickness:</span> 1.6mm FR4<br>
+        <span style="color:var(--accent);">Layers:</span> 2 (top signal + bottom GND)<br>
+        <span style="color:var(--accent);">Copper:</span> 1oz (35µm) both sides<br>
+        <span style="color:var(--accent);">Surface:</span> HASL (leaded) or ENIG<br>
+        <span style="color:var(--accent);">Silkscreen:</span> White top, no bottom<br>
+        <span style="color:var(--accent);">Solder mask:</span> Green both sides<br>
+        <span style="color:var(--accent);">Min trace:</span> 0.2mm / 0.2mm space<br>
+        <span style="color:var(--accent);">Min via:</span> 0.3mm drill / 0.6mm pad<br>
+        <span style="color:var(--accent);">ERC/DRC:</span> Run in KiCad before fab<br>
+        <span style="color:var(--accent);">Fab ready:</span> JLCPCB / PCBWay / OSH Park<br>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Layer toggle
+const layers = { '5v': true, '3v3': true, 'gnd': true, 'i2c': true, 'sig': true };
+
+function toggleLayer(name, btn) {
+  layers[name] = !layers[name];
+  const el = document.getElementById('layer-' + name);
+  if (el) el.style.opacity = layers[name] ? '1' : '0';
+  btn.classList.toggle('inactive', !layers[name]);
+}
+
+// Hover tooltips on components
+const wrapper = document.getElementById('pcbWrapper');
+const tooltip = document.getElementById('tooltip');
+
+document.querySelectorAll('.comp').forEach(el => {
+  el.addEventListener('mouseenter', function(e) {
+    const tip = this.getAttribute('data-tip');
+    if (!tip) return;
+    tooltip.textContent = tip;
+    tooltip.classList.add('show');
+  });
+  el.addEventListener('mousemove', function(e) {
+    const rect = wrapper.getBoundingClientRect();
+    let x = e.clientX - rect.left + 14;
+    let y = e.clientY - rect.top + 14;
+    if (x + 230 > rect.width) x = e.clientX - rect.left - 240;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  });
+  el.addEventListener('mouseleave', function() {
+    tooltip.classList.remove('show');
+  });
+});
+</script>
+</body>
+</html>

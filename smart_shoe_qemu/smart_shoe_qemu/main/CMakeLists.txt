@@ -1,0 +1,10 @@
+idf_component_register(
+    SRCS
+        "smart_shoe_qemu_test.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        imu_stub
+        zupt
+        ble_stub
+)

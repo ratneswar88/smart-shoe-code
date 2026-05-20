@@ -1,0 +1,26 @@
+# sdkconfig.defaults — QEMU test build for smart shoe
+# Apply with: idf.py -DSDKCONFIG_DEFAULTS=sdkconfig.defaults.qemu build
+
+CONFIG_IDF_TARGET="esp32"
+
+# Use minimal flash (2MB) to match QEMU image
+CONFIG_ESPTOOLPY_FLASHSIZE_2MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="2MB"
+
+# Increase main stack for ZUPT + filter math
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Enable floating point in FreeRTOS tasks
+CONFIG_FREERTOS_ENABLE_STATIC_TASK_CLEAN_UP=n
+
+# Disable WiFi/BT to speed up boot in QEMU
+CONFIG_ESP_WIFI_ENABLED=n
+CONFIG_BT_ENABLED=n
+
+# Serial output settings
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+
+# Logging
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_LOG_MAXIMUM_LEVEL_VERBOSE=y

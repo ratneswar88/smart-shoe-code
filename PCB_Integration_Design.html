@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCB Integration Design — PowerBoost 500C + GY-86 + ESP32-S3 Zero</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pcb-green: #00ff88;
+    --pcb-dim: #00b35a;
+    --pcb-dark: #021a0d;
+    --pcb-mid: #041f10;
+    --copper: #c87533;
+    --copper-light: #e8934a;
+    --silkscreen: #e0ffe8;
+    --via: #ffd700;
+    --trace: #c87533;
+    --warn: #ff6b35;
+    --warn-soft: #ff9a6c;
+    --info: #4db8ff;
+    --grid: rgba(0,255,136,0.06);
+    --glow: 0 0 20px rgba(0,255,136,0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background-color: var(--pcb-dark);
+    color: var(--silkscreen);
+    font-family: 'Exo 2', sans-serif;
+    font-weight: 300;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    min-height: 100vh;
+  }
+
+  .mono { font-family: 'Share Tech Mono', monospace; }
+
+  header {
+    background: linear-gradient(135deg, #000 0%, #011007 50%, #021a0d 100%);
+    border-bottom: 2px solid var(--pcb-green);
+    padding: 36px 48px 28px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 400px; height: 100%;
+    background: radial-gradient(ellipse at 80% 50%, rgba(0,255,136,0.08) 0%, transparent 70%);
+  }
+
+  .header-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--pcb-green);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    opacity: 0.7;
+  }
+
+  header h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--pcb-green);
+    text-shadow: var(--glow);
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+
+  header h1 span { color: var(--copper-light); }
+
+  header p {
+    font-size: 0.85rem;
+    color: rgba(224,255,232,0.55);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .rev-tag {
+    position: absolute;
+    top: 24px; right: 48px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--copper);
+    border: 1px solid var(--copper);
+    padding: 4px 10px;
+    letter-spacing: 2px;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 32px; }
+
+  /* SECTION HEADERS */
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 48px 0 20px;
+  }
+
+  .section-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--pcb-green);
+    border: 1px solid var(--pcb-dim);
+    padding: 3px 8px;
+    letter-spacing: 2px;
+    opacity: 0.7;
+  }
+
+  .section-title h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--pcb-green);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--pcb-dim), transparent);
+    opacity: 0.4;
+  }
+
+  /* CARDS */
+  .card {
+    background: rgba(0,20,8,0.85);
+    border: 1px solid rgba(0,255,136,0.15);
+    border-radius: 4px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--pcb-green), transparent);
+    opacity: 0.4;
+  }
+
+  .card-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--copper-light);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(200,117,51,0.2);
+  }
+
+  /* BLOCK DIAGRAM */
+  .block-diagram {
+    background: rgba(0,10,4,0.9);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 4px;
+    padding: 36px 24px;
+    margin-bottom: 24px;
+  }
+
+  .bd-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  .block {
+    background: rgba(0,30,12,0.9);
+    border: 1px solid var(--pcb-dim);
+    border-radius: 3px;
+    padding: 14px 18px;
+    text-align: center;
+    min-width: 130px;
+    position: relative;
+  }
+
+  .block.power { border-color: var(--copper); }
+  .block.mcu { border-color: var(--pcb-green); box-shadow: 0 0 12px rgba(0,255,136,0.15); }
+  .block.sensor { border-color: var(--info); }
+  .block.battery { border-color: #888; }
+  .block.usb-input { border-color: #888; }
+
+  .block-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: rgba(224,255,232,0.45);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .block-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--silkscreen);
+  }
+
+  .block.power .block-name { color: var(--copper-light); }
+  .block.mcu .block-name { color: var(--pcb-green); }
+  .block.sensor .block-name { color: var(--info); }
+
+  .block-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(224,255,232,0.3);
+    margin-top: 3px;
+  }
+
+  /* Arrows */
+  .arrow-h {
+    display: flex;
+    align-items: center;
+    min-width: 60px;
+  }
+
+  .arrow-h .line {
+    flex: 1;
+    height: 2px;
+    background: var(--copper);
+    position: relative;
+  }
+
+  .arrow-h .arrowhead {
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 8px solid var(--copper);
+  }
+
+  .arrow-label {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--copper);
+    white-space: nowrap;
+    letter-spacing: 1px;
+  }
+
+  .arrow-h.green .line { background: var(--pcb-green); }
+  .arrow-h.green .arrowhead { border-left-color: var(--pcb-green); }
+  .arrow-h.green .arrow-label { color: var(--pcb-green); }
+  .arrow-h.blue .line { background: var(--info); }
+  .arrow-h.blue .arrowhead { border-left-color: var(--info); }
+  .arrow-h.blue .arrow-label { color: var(--info); }
+
+  .arrow-v-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  .arrow-v .vline {
+    width: 2px;
+    height: 40px;
+    background: var(--pcb-green);
+  }
+
+  .arrow-v .varrowhead {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 8px solid var(--pcb-green);
+  }
+
+  .arrow-v-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--pcb-green);
+    letter-spacing: 1px;
+    margin-left: 8px;
+  }
+
+  /* PIN TABLE */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin-top: 4px;
+  }
+
+  thead tr {
+    background: rgba(0,255,136,0.08);
+  }
+
+  th {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--pcb-green);
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid rgba(0,255,136,0.2);
+    text-transform: uppercase;
+  }
+
+  td {
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(0,255,136,0.06);
+    color: rgba(224,255,232,0.85);
+    vertical-align: top;
+  }
+
+  tr:hover td { background: rgba(0,255,136,0.04); }
+
+  .pin-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    background: rgba(200,117,51,0.15);
+    color: var(--copper-light);
+    border: 1px solid rgba(200,117,51,0.3);
+    padding: 2px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  .pin-tag.green {
+    background: rgba(0,255,136,0.1);
+    color: var(--pcb-green);
+    border-color: rgba(0,255,136,0.3);
+  }
+
+  .pin-tag.blue {
+    background: rgba(77,184,255,0.1);
+    color: var(--info);
+    border-color: rgba(77,184,255,0.3);
+  }
+
+  .pin-tag.via {
+    background: rgba(255,215,0,0.1);
+    color: var(--via);
+    border-color: rgba(255,215,0,0.3);
+  }
+
+  /* WARNING BOX */
+  .warn-box {
+    background: rgba(255,107,53,0.08);
+    border: 1px solid rgba(255,107,53,0.4);
+    border-left: 3px solid var(--warn);
+    border-radius: 3px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .warn-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .warn-box p {
+    font-size: 0.82rem;
+    color: var(--warn-soft);
+    line-height: 1.6;
+  }
+
+  .warn-box strong { color: var(--warn); font-weight: 600; }
+
+  .info-box {
+    background: rgba(77,184,255,0.06);
+    border: 1px solid rgba(77,184,255,0.25);
+    border-left: 3px solid var(--info);
+    border-radius: 3px;
+    padding: 14px 18px;
+    margin: 16px 0;
+  }
+
+  .info-box p {
+    font-size: 0.82rem;
+    color: rgba(200,235,255,0.85);
+    line-height: 1.6;
+  }
+
+  .info-box strong { color: var(--info); }
+
+  /* SCHEMATIC DIAGRAM */
+  .schematic-svg {
+    width: 100%;
+    background: #010e05;
+    border: 1px solid rgba(0,255,136,0.12);
+    border-radius: 4px;
+    padding: 20px;
+    overflow-x: auto;
+  }
+
+  /* GRID LAYOUT */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  /* BOM */
+  .bom-ref {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--via);
+  }
+
+  /* LAYOUT ZONES */
+  .layout-diagram {
+    background: #010e05;
+    border: 1px solid rgba(0,255,136,0.15);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+  }
+
+  .pcb-outline {
+    width: 100%;
+    aspect-ratio: 2/1;
+    background: #021a0d;
+    border: 2px solid var(--pcb-green);
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pcb-outline::before {
+    content: 'PCB OUTLINE — 70mm × 45mm (ESTIMATED)';
+    position: absolute;
+    top: 8px; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: rgba(0,255,136,0.4);
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  .zone {
+    position: absolute;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .zone-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    font-weight: bold;
+    margin-bottom: 2px;
+  }
+
+  .zone-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    opacity: 0.65;
+  }
+
+  .zone-pb {
+    background: rgba(200,117,51,0.18);
+    border: 1px dashed var(--copper);
+    top: 18%; left: 3%;
+    width: 28%; height: 65%;
+    color: var(--copper-light);
+  }
+
+  .zone-esp {
+    background: rgba(0,255,136,0.1);
+    border: 1px dashed var(--pcb-green);
+    top: 18%; left: 36%;
+    width: 28%; height: 65%;
+    color: var(--pcb-green);
+  }
+
+  .zone-gy {
+    background: rgba(77,184,255,0.1);
+    border: 1px dashed var(--info);
+    top: 18%; right: 3%;
+    width: 28%; height: 65%;
+    color: var(--info);
+  }
+
+  .zone-pwr-traces {
+    position: absolute;
+    bottom: 9%; left: 3%; right: 3%;
+    height: 8%;
+    background: rgba(200,117,51,0.1);
+    border: 1px dashed rgba(200,117,51,0.4);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .zone-pwr-traces .zone-label {
+    font-size: 8px;
+    color: rgba(200,117,51,0.7);
+  }
+
+  /* connector corners */
+  .corner-mark {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-color: var(--pcb-green);
+    border-style: solid;
+    opacity: 0.5;
+  }
+
+  .corner-mark.tl { top: 4px; left: 4px; border-width: 1px 0 0 1px; }
+  .corner-mark.tr { top: 4px; right: 4px; border-width: 1px 1px 0 0; }
+  .corner-mark.bl { bottom: 4px; left: 4px; border-width: 0 0 1px 1px; }
+  .corner-mark.br { bottom: 4px; right: 4px; border-width: 0 1px 1px 0; }
+
+  /* connector pads marker */
+  .pad-marker {
+    width: 8px; height: 8px;
+    background: var(--copper);
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 4px var(--copper);
+    margin: 0 2px;
+  }
+
+  /* trace indicators */
+  .trace-5v { color: #ff4444; }
+  .trace-3v3 { color: #ff9900; }
+  .trace-gnd { color: #888; }
+  .trace-i2c { color: var(--info); }
+  .trace-sig { color: var(--pcb-green); }
+
+  code {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85em;
+    background: rgba(0,255,136,0.08);
+    color: var(--pcb-green);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  ul, ol { padding-left: 20px; }
+
+  li {
+    font-size: 0.84rem;
+    color: rgba(224,255,232,0.8);
+    line-height: 1.8;
+  }
+
+  li::marker { color: var(--pcb-dim); }
+
+  p {
+    font-size: 0.84rem;
+    color: rgba(224,255,232,0.75);
+    line-height: 1.7;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,255,136,0.2), transparent);
+    margin: 36px 0;
+  }
+
+  footer {
+    border-top: 1px solid rgba(0,255,136,0.15);
+    padding: 24px 32px;
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: rgba(0,255,136,0.3);
+    letter-spacing: 2px;
+  }
+
+  /* Resistor symbol inline */
+  .r-sym {
+    display: inline-block;
+    width: 28px; height: 10px;
+    background: repeating-linear-gradient(90deg, var(--copper) 0px, var(--copper) 3px, transparent 3px, transparent 5px);
+    vertical-align: middle;
+    margin: 0 4px;
+    border-radius: 1px;
+  }
+
+  /* highlight */
+  .hl { color: var(--pcb-green); font-weight: 600; }
+  .hl-cu { color: var(--copper-light); font-weight: 600; }
+  .hl-bl { color: var(--info); font-weight: 600; }
+
+  @media (max-width: 700px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    header { padding: 24px; }
+    header h1 { font-size: 1.5rem; }
+    .container { padding: 24px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="rev-tag">REV A · 2025</div>
+  <div class="header-badge">◉ PCB Integration Reference Design</div>
+  <h1>Smart Wearable<br><span>Power + IMU Integration</span></h1>
+  <p>PowerBoost 500C &nbsp;+&nbsp; GY-86 (MPU6050 / HMC5883L / MS5611) &nbsp;+&nbsp; ESP32-S3 Zero</p>
+</header>
+
+<div class="container">
+
+  <!-- ───── SECTION 1: SYSTEM OVERVIEW ───── -->
+  <div class="section-title">
+    <span class="section-num">§01</span>
+    <h2>System Block Diagram</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="block-diagram">
+    <!-- Row 1: USB charge input and LiPo Battery -->
+    <div style="display:flex; justify-content:center; gap:80px; margin-bottom:12px;">
+      <div class="block usb-input">
+        <div class="block-label">Charge Input</div>
+        <div class="block-name">Micro-USB</div>
+        <div class="block-sub">4.75–5.25V</div>
+      </div>
+      <div class="block battery">
+        <div class="block-label">Energy Storage</div>
+        <div class="block-name">LiPo Battery</div>
+        <div class="block-sub">3.7V / ≥500mAh</div>
+      </div>
+    </div>
+
+    <!-- Arrows down into PowerBoost -->
+    <div style="display:flex; justify-content:center; gap:80px; margin-bottom:8px;">
+      <div class="arrow-v-wrap">
+        <div class="arrow-v"><div class="vline" style="background:#888;"></div><div class="varrowhead" style="border-top-color:#888;"></div></div>
+      </div>
+      <div class="arrow-v-wrap">
+        <div class="arrow-v"><div class="vline" style="background:#888;"></div><div class="varrowhead" style="border-top-color:#888;"></div></div>
+      </div>
+    </div>
+
+    <!-- Row 2: PowerBoost 500C -->
+    <div style="display:flex; justify-content:center; margin-bottom:12px;">
+      <div class="block power" style="min-width:240px;">
+        <div class="block-label">Power Management</div>
+        <div class="block-name">Adafruit PowerBoost 500C</div>
+        <div class="block-sub">TPS61090 · Boost + Charger · 5.2V out · 500mA</div>
+      </div>
+    </div>
+
+    <!-- Arrow down to ESP32 with labels -->
+    <div style="display:flex; align-items:center; justify-content:center; gap:0; margin-bottom:12px;">
+      <div style="text-align:center;">
+        <div style="font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--pcb-green); letter-spacing:1px; margin-bottom:2px;">5V ─── EN/LBO ─── GND</div>
+        <div style="display:flex; justify-content:center;">
+          <div class="arrow-v"><div class="vline"></div><div class="varrowhead"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: ESP32-S3 Zero -->
+    <div style="display:flex; justify-content:center; margin-bottom:12px;">
+      <div class="block mcu" style="min-width:260px;">
+        <div class="block-label">Main MCU</div>
+        <div class="block-name">ESP32-S3 Zero (Waveshare)</div>
+        <div class="block-sub">Xtensa LX7 · 240MHz · 4MB Flash · BLE + WiFi</div>
+      </div>
+    </div>
+
+    <!-- Arrow right to GY-86 -->
+    <div style="display:flex; align-items:center; justify-content:center; gap:0; margin-bottom:12px;">
+      <div style="text-align:center;">
+        <div style="font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--info); letter-spacing:1px; margin-bottom:2px;">3.3V · GND · SDA (GPIO8) · SCL (GPIO9)</div>
+        <div style="display:flex; justify-content:center;">
+          <div class="arrow-v"><div class="vline" style="background:var(--info);"></div><div class="varrowhead" style="border-top-color:var(--info);"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 4: GY-86 -->
+    <div style="display:flex; justify-content:center;">
+      <div class="block sensor" style="min-width:260px;">
+        <div class="block-label">10-DOF IMU + Barometer</div>
+        <div class="block-name">GY-86 Module</div>
+        <div class="block-sub">MPU6050 · HMC5883L · MS5611 · I²C Bus</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">⚡ Power Architecture</div>
+      <p>LiPo → PowerBoost → <span class="trace-5v">5V</span> → ESP32-S3 (5V pin) → onboard LDO → <span class="trace-3v3">3.3V</span> → GY-86</p>
+    </div>
+    <div class="card">
+      <div class="card-title">📡 Sensor Bus</div>
+      <p>I²C shared bus: ESP32-S3 GPIO8 (SDA) / GPIO9 (SCL) → GY-86. Addresses: <code>0x68</code> MPU6050, <code>0x1E</code> HMC5883L, <code>0x77</code> MS5611</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🔋 Battery Monitor</div>
+      <p>PowerBoost LBO (low batt, pulled to BAT ≈4V) → voltage divider → ESP32-S3 GPIO5 (ADC-safe, 3.3V logic)</p>
+    </div>
+  </div>
+
+
+  <!-- ───── SECTION 2: PIN CONNECTIONS ───── -->
+  <div class="section-title">
+    <span class="section-num">§02</span>
+    <h2>Complete Pin Connection Table</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔌 PowerBoost 500C → ESP32-S3 Zero</div>
+    <table>
+      <thead>
+        <tr>
+          <th>PowerBoost Pin</th>
+          <th>Net / Signal</th>
+          <th>ESP32-S3 Zero Pin</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pin-tag">5V</span></td>
+          <td><span class="trace-5v">+5V_SYS</span></td>
+          <td><span class="pin-tag green">5V</span></td>
+          <td>Main power feed — 2oz copper pour recommended, wide trace ≥1.5mm</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag">GND</span></td>
+          <td>GND</td>
+          <td><span class="pin-tag green">GND</span></td>
+          <td>Star ground topology — tie all GNDs at single pour polygon</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag">EN</span></td>
+          <td>PWR_EN</td>
+          <td>— (switch to GND)</td>
+          <td>Route to SPDT slide switch pad on PCB. Pull HIGH internally; connect to GND to shut off boost output.</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag">LBO</span></td>
+          <td>LOW_BATT_RAW</td>
+          <td><span class="pin-tag green">GPIO5</span> (via divider)</td>
+          <td><strong>⚠ Voltage divider required</strong> — LBO pulled to BAT (~4.2V). Use R1=100kΩ, R2=150kΩ to produce ≤2.5V at GPIO. See §3 circuit.</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag">USB</span></td>
+          <td>VBUS_CHG</td>
+          <td>— (not connected)</td>
+          <td>Micro-USB on PowerBoost for battery charging only. Leave charge path isolated from system 5V rail.</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag">BAT</span></td>
+          <td>VBAT</td>
+          <td>— (not connected)</td>
+          <td>Battery terminal. Only connect JST battery connector here.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📐 GY-86 → ESP32-S3 Zero (I²C)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>GY-86 Pin</th>
+          <th>Net / Signal</th>
+          <th>ESP32-S3 Zero Pin</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pin-tag blue">VCC_IN</span></td>
+          <td><span class="trace-3v3">+3V3_SYS</span></td>
+          <td><span class="pin-tag green">3V3</span></td>
+          <td>GY-86 onboard LDO accepts 3.3–5V. Powering from ESP32-S3's 3.3V rail is correct for logic compatibility.</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag blue">GND</span></td>
+          <td>GND</td>
+          <td><span class="pin-tag green">GND</span></td>
+          <td>Common ground plane</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag blue">SCL</span></td>
+          <td>I2C_SCL</td>
+          <td><span class="pin-tag green">GPIO9</span></td>
+          <td>I²C clock. Route with 4.7kΩ pull-up to 3.3V. Keep trace short; avoid crossing power planes.</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag blue">SDA</span></td>
+          <td>I2C_SDA</td>
+          <td><span class="pin-tag green">GPIO8</span></td>
+          <td>I²C data. Route with 4.7kΩ pull-up to 3.3V. Match length to SCL for symmetry.</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag blue">DRDY</span></td>
+          <td>MAG_DRDY</td>
+          <td><span class="pin-tag green">GPIO4</span></td>
+          <td>HMC5883L Data Ready interrupt — optional but recommended for magnetometer accuracy. Active-high.</td>
+        </tr>
+        <tr>
+          <td><span class="pin-tag blue">VCC_3.3</span></td>
+          <td>— (not used)</td>
+          <td>—</td>
+          <td>GY-86's own 3.3V out. Do not connect — avoid contention with ESP32-S3's LDO output.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warn-box">
+    <span class="warn-icon">⚠</span>
+    <p><strong>LBO Level-Shift Critical:</strong> The LBO pin is pulled to BAT voltage (3.0–4.2V range). ESP32-S3 GPIO absolute maximum is 3.6V. You <strong>must</strong> use a voltage divider or level-shifter before connecting LBO to any ESP32-S3 GPIO. Omitting this will damage the MCU over time. See §3 for the exact resistor network.</p>
+  </div>
+
+
+  <!-- ───── SECTION 3: CRITICAL SUB-CIRCUITS ───── -->
+  <div class="section-title">
+    <span class="section-num">§03</span>
+    <h2>Critical Sub-Circuits</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-title">⚗ LBO Voltage Divider</div>
+      <p style="margin-bottom:12px;">Scales BAT-level LBO (up to 4.2V) to safe GPIO input (≤2.52V):</p>
+      <div style="font-family:'Share Tech Mono',monospace; font-size:0.8rem; background:#000; padding:16px; border-radius:3px; line-height:2.2; border:1px solid rgba(200,117,51,0.2);">
+        <span style="color:#888;">LBO_PIN ──┬── R1(100kΩ) ──── GPIO5</span><br>
+        <span style="color:#888;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│</span><br>
+        <span style="color:#888;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R2(150kΩ)</span><br>
+        <span style="color:#888;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│</span><br>
+        <span style="color:#888;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;GND</span><br>
+      </div>
+      <div style="margin-top:12px; padding:10px; background:rgba(0,255,136,0.05); border:1px solid rgba(0,255,136,0.1); border-radius:3px;">
+        <p style="font-family:'Share Tech Mono',monospace; font-size:0.78rem; color:rgba(0,255,136,0.8);">
+          V_GPIO = 4.2V × 150k/(100k+150k) = <strong>2.52V</strong> ✓<br>
+          GPIO5 reads LOW when battery &lt;3.2V (LBO fires)<br>
+          Add 100nF decoupling cap at GPIO5 to GND
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔗 I²C Pull-Up Network</div>
+      <p style="margin-bottom:12px;">Both SDA and SCL require pull-ups. Place as close to GY-86 as possible:</p>
+      <div style="font-family:'Share Tech Mono',monospace; font-size:0.8rem; background:#000; padding:16px; border-radius:3px; line-height:2.2; border:1px solid rgba(77,184,255,0.2);">
+        <span style="color:#4db8ff;">3V3 ─── R3(4.7kΩ) ─── SDA (GPIO8)</span><br>
+        <span style="color:#4db8ff;">3V3 ─── R4(4.7kΩ) ─── SCL (GPIO9)</span><br>
+        <span style="color:#888;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+      </div>
+      <div style="margin-top:12px; padding:10px; background:rgba(77,184,255,0.05); border:1px solid rgba(77,184,255,0.12); border-radius:3px;">
+        <p style="font-family:'Share Tech Mono',monospace; font-size:0.78rem; color:rgba(180,220,255,0.8);">
+          4.7kΩ is standard for 100kHz I²C.<br>
+          Use 2.2kΩ if running at 400kHz fast-mode.<br>
+          GY-86 has on-module 4.7kΩ — check bridge resistors<br>
+          to avoid double pull-up (use 10kΩ external instead).
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔘 Power Enable Switch</div>
+      <p style="margin-bottom:12px;">SPDT slide switch to control boost output via EN pin:</p>
+      <div style="font-family:'Share Tech Mono',monospace; font-size:0.8rem; background:#000; padding:16px; border-radius:3px; line-height:2.2; border:1px solid rgba(200,117,51,0.2);">
+        <span style="color:var(--copper-light);">EN ──── SW1 ──── GND</span><br>
+        <span style="color:#888;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (open=ON, closed=OFF)</span><br>
+        <span style="color:#888;">Route to edge-mounted slide switch</span><br>
+        <span style="color:#888;">Low-current signal only (~1µA)</span>
+      </div>
+      <div style="margin-top:12px;">
+        <p>⟶ Any tiny SMD slide switch works — EN is signal-level only, not in-line with battery current. Minimal switch rating required.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧲 Decoupling Capacitors</div>
+      <p style="margin-bottom:12px;">Place at each power pin as close to IC as possible:</p>
+      <table>
+        <thead><tr><th>Location</th><th>Cap</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>ESP32-S3 VIN (5V)</td><td>C1</td><td>100µF electrolytic + 100nF ceramic</td></tr>
+          <tr><td>ESP32-S3 3V3 output</td><td>C2</td><td>10µF tantalum + 100nF ceramic</td></tr>
+          <tr><td>GY-86 VCC</td><td>C3</td><td>10µF + 100nF ceramic</td></tr>
+          <tr><td>PowerBoost 5V rail</td><td>C4</td><td>100µF + 100nF (already onboard)</td></tr>
+          <tr><td>LBO divider GPIO5</td><td>C5</td><td>100nF ceramic</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="info-box">
+    <p><strong>GY-86 I²C Note:</strong> The GY-86 module may already have 4.7kΩ pull-up resistors soldered onboard. Before adding external pull-ups (R3/R4), check the module — running two 4.7kΩ resistors in parallel gives 2.35kΩ which may be too strong and cause noise. If the GY-86 already has pull-ups, use 10kΩ external resistors only as a fallback, or bridge/remove the onboard ones.</p>
+  </div>
+
+
+  <!-- ───── SECTION 4: PCB LAYOUT ───── -->
+  <div class="section-title">
+    <span class="section-num">§04</span>
+    <h2>PCB Layout & Zone Placement</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="layout-diagram">
+    <div class="pcb-outline">
+      <div class="corner-mark tl"></div>
+      <div class="corner-mark tr"></div>
+      <div class="corner-mark bl"></div>
+      <div class="corner-mark br"></div>
+
+      <div class="zone zone-pb">
+        <div class="zone-label">PowerBoost 500C</div>
+        <div class="zone-sub">35 × 23mm</div>
+        <div class="zone-sub" style="margin-top:4px;">USB-µ → Edge</div>
+        <div class="zone-sub">JST → Edge</div>
+        <div class="zone-sub">EN Switch ↓</div>
+      </div>
+
+      <div class="zone zone-esp">
+        <div class="zone-label">ESP32-S3 Zero</div>
+        <div class="zone-sub">25 × 25mm</div>
+        <div class="zone-sub" style="margin-top:4px;">USB-C → Top Edge</div>
+        <div class="zone-sub">Antenna → Clear</div>
+        <div class="zone-sub">GPIO8/9 ← GY86</div>
+      </div>
+
+      <div class="zone zone-gy">
+        <div class="zone-label">GY-86 Module</div>
+        <div class="zone-sub">20 × 16mm</div>
+        <div class="zone-sub" style="margin-top:4px;">3V3 from ESP32</div>
+        <div class="zone-sub">I²C → GPIO8/9</div>
+        <div class="zone-sub">Keep flat / level</div>
+      </div>
+
+      <div class="zone-pwr-traces">
+        <span class="zone-label">5V POWER PLANE · GND COPPER POUR (BOTTOM LAYER)</span>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; display:flex; gap:20px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-family:'Share Tech Mono',monospace;">
+        <div style="width:24px; height:3px; background:var(--copper); border-radius:1px;"></div>
+        <span style="color:var(--copper-light);">5V trace (1.5mm min)</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-family:'Share Tech Mono',monospace;">
+        <div style="width:24px; height:3px; background:#888; border-radius:1px;"></div>
+        <span style="color:#aaa;">GND pour (bottom)</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-family:'Share Tech Mono',monospace;">
+        <div style="width:24px; height:2px; background:var(--info); border-radius:1px;"></div>
+        <span style="color:var(--info);">I²C traces (0.25mm)</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-family:'Share Tech Mono',monospace;">
+        <div style="width:24px; height:2px; background:var(--pcb-green); border-radius:1px;"></div>
+        <span style="color:var(--pcb-green);">Signal traces (0.2mm)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:18px;">
+    <div class="card">
+      <div class="card-title">📐 PCB Stack-Up (Recommended 4-layer)</div>
+      <table>
+        <thead><tr><th>Layer</th><th>Function</th><th>Usage</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pin-tag">L1</span></td><td>Signal Top</td><td>I²C, GPIO, 3V3 traces</td></tr>
+          <tr><td><span class="pin-tag via">L2</span></td><td>Ground Plane</td><td>Solid GND copper pour</td></tr>
+          <tr><td><span class="pin-tag via">L3</span></td><td>Power Plane</td><td>5V pour, 3V3 pours</td></tr>
+          <tr><td><span class="pin-tag">L4</span></td><td>Signal Bottom</td><td>Power routing, connectors</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px; font-size:0.78rem; color:rgba(224,255,232,0.5);">If using 2-layer: L1 = signals + power traces; L2 = GND flood pour.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📏 Trace Width Guidelines</div>
+      <table>
+        <thead><tr><th>Net</th><th>Width</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr><td><span class="trace-5v">5V / GND</span></td><td><strong>1.5–2.0mm</strong></td><td>Up to 1A system draw</td></tr>
+          <tr><td><span class="trace-3v3">3V3</span></td><td><strong>0.8mm</strong></td><td>~200mA sensor + MCU</td></tr>
+          <tr><td><span class="trace-i2c">I²C (SDA/SCL)</span></td><td><strong>0.25mm</strong></td><td>Signal, keep short</td></tr>
+          <tr><td><span class="trace-sig">GPIO signals</span></td><td><strong>0.2mm</strong></td><td>Low-current control</td></tr>
+          <tr><td>LBO divider</td><td><strong>0.2mm</strong></td><td>Micro-amp signal</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- ───── SECTION 5: MECHANICAL ───── -->
+  <div class="section-title">
+    <span class="section-num">§05</span>
+    <h2>Mechanical & Connector Layout</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📦 Board Dimensions & Module Footprints</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Size (PCB)</th>
+          <th>Mounting</th>
+          <th>Connector Type</th>
+          <th>Placement</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="hl-cu">PowerBoost 500C</span></td>
+          <td>35.6 × 22.9mm</td>
+          <td>4× M2 standoffs or SMD pads</td>
+          <td>2.54mm pin headers (2×6)</td>
+          <td>Left zone — USB facing board edge</td>
+        </tr>
+        <tr>
+          <td><span class="hl">ESP32-S3 Zero</span></td>
+          <td>25.4 × 25.4mm</td>
+          <td>Castellated edge or 2.54mm headers</td>
+          <td>2.54mm female sockets</td>
+          <td>Center zone — USB-C to top edge, antenna clear of GY-86</td>
+        </tr>
+        <tr>
+          <td><span class="hl-bl">GY-86 Module</span></td>
+          <td>20.0 × 15.3mm</td>
+          <td>2× M2 or pin headers</td>
+          <td>2.54mm pin headers (1×6)</td>
+          <td>Right zone — mount flat, away from power switching noise</td>
+        </tr>
+        <tr>
+          <td>LiPo Battery</td>
+          <td>Per battery size</td>
+          <td>Below PCB (wired)</td>
+          <td>JST PH 2-pin</td>
+          <td>Route to PowerBoost JST connector</td>
+        </tr>
+        <tr>
+          <td>Power Switch</td>
+          <td>—</td>
+          <td>Edge mount</td>
+          <td>SPDT slide switch</td>
+          <td>Bottom edge of PCB</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="warn-box">
+    <span class="warn-icon">📡</span>
+    <p><strong>RF Antenna Clearance:</strong> The ESP32-S3 Zero has a PCB ceramic antenna on one end. Do <strong>not</strong> route any ground planes, copper pours, or tall components within 3–5mm of the antenna area. Place the ESP32-S3 Zero so the antenna end faces the edge or open area of the carrier PCB. This is critical for BLE/WiFi range in your smart shoe application.</p>
+  </div>
+
+  <div class="warn-box" style="border-left-color:#4db8ff; background:rgba(77,184,255,0.05);">
+    <span class="warn-icon">🧲</span>
+    <p style="color:rgba(200,235,255,0.85);"><strong>GY-86 IMU Placement:</strong> Keep the GY-86 away from the PowerBoost 500C (TPS61090 switching at 700kHz) and any large electrolytic capacitors. Magnetic interference from boost converter switching can corrupt HMC5883L magnetometer readings. Minimum separation of <strong>20mm</strong> is recommended. Consider adding a ferrite bead on the 3V3 supply line feeding GY-86.</p>
+  </div>
+
+
+  <!-- ───── SECTION 6: BOM ───── -->
+  <div class="section-title">
+    <span class="section-num">§06</span>
+    <h2>Bill of Materials (Passive Components)</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Ref</th>
+          <th>Value</th>
+          <th>Package</th>
+          <th>Function</th>
+          <th>Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="bom-ref">R1</span></td>
+          <td>100kΩ 1%</td>
+          <td>0402 / 0603</td>
+          <td>LBO voltage divider upper</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">R2</span></td>
+          <td>150kΩ 1%</td>
+          <td>0402 / 0603</td>
+          <td>LBO voltage divider lower</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">R3</span></td>
+          <td>4.7kΩ (or 10kΩ)</td>
+          <td>0402 / 0603</td>
+          <td>I²C SDA pull-up to 3V3</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">R4</span></td>
+          <td>4.7kΩ (or 10kΩ)</td>
+          <td>0402 / 0603</td>
+          <td>I²C SCL pull-up to 3V3</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">C1</span></td>
+          <td>100µF / 10V</td>
+          <td>SMD electrolytic D8</td>
+          <td>5V rail bulk decoupling</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">C2</span></td>
+          <td>10µF / 6.3V</td>
+          <td>0805 tantalum / ceramic</td>
+          <td>3V3 rail bulk decoupling</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">C3, C4, C5</span></td>
+          <td>100nF / 10V</td>
+          <td>0402 ceramic X7R</td>
+          <td>Local HF decoupling (5V, 3V3, LBO GPIO)</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">L1</span></td>
+          <td>600Ω @ 100MHz ferrite bead</td>
+          <td>0402 / 0603</td>
+          <td>3V3 filter for GY-86 (optional, recommended)</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">SW1</span></td>
+          <td>SPDT slide switch</td>
+          <td>THT / SMD edge</td>
+          <td>PowerBoost EN control</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">J1</span></td>
+          <td>JST PH 2-pin</td>
+          <td>THT</td>
+          <td>LiPo battery connector (to PowerBoost)</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td><span class="bom-ref">J2–J4</span></td>
+          <td>2.54mm female socket headers</td>
+          <td>THT</td>
+          <td>Module socket connectors</td>
+          <td>3 sets</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ───── SECTION 7: FIRMWARE NOTES ───── -->
+  <div class="section-title">
+    <span class="section-num">§07</span>
+    <h2>Firmware Integration Notes</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">⚙ I²C Initialization (ESP-IDF / Arduino)</div>
+      <div style="font-family:'Share Tech Mono',monospace; font-size:0.78rem; background:#000; padding:16px; border-radius:3px; line-height:1.9; border:1px solid rgba(0,255,136,0.15); color: rgba(0,255,136,0.8);">
+        // Arduino / ESP-IDF I2C config<br>
+        #define I2C_SDA  8  // GPIO8<br>
+        #define I2C_SCL  9  // GPIO9<br>
+        #define I2C_FREQ 400000 // 400kHz<br>
+        <br>
+        Wire.begin(I2C_SDA, I2C_SCL);<br>
+        Wire.setClock(I2C_FREQ);<br>
+        <br>
+        // I2C Addresses:<br>
+        // MPU6050  → 0x68 (AD0 low)<br>
+        // HMC5883L → 0x1E<br>
+        // MS5611   → 0x77 (CSB low)<br>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔋 LBO Battery Monitor</div>
+      <div style="font-family:'Share Tech Mono',monospace; font-size:0.78rem; background:#000; padding:16px; border-radius:3px; line-height:1.9; border:1px solid rgba(200,117,51,0.2); color:rgba(200,150,80,0.9);">
+        #define LBO_PIN  5  // GPIO5<br>
+        <br>
+        // LBO is ACTIVE LOW when battery<br>
+        // drops below 3.2V<br>
+        pinMode(LBO_PIN, INPUT_PULLUP);<br>
+        <br>
+        if (digitalRead(LBO_PIN) == LOW) {<br>
+        &nbsp;&nbsp;// Low battery detected!<br>
+        &nbsp;&nbsp;// Alert BLE characteristic<br>
+        &nbsp;&nbsp;// or initiate safe shutdown<br>
+        }<br>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📡 GY-86 Key I²C Addresses</div>
+      <table>
+        <thead><tr><th>Sensor</th><th>I²C Addr</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>MPU6050</td><td><code>0x68</code></td><td>6-axis IMU (accel + gyro)</td></tr>
+          <tr><td>HMC5883L</td><td><code>0x1E</code></td><td>3-axis magnetometer</td></tr>
+          <tr><td>MS5611</td><td><code>0x77</code></td><td>Barometric pressure + altitude</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px;">MPU6050 has a passthrough I²C master that can access HMC5883L internally — or bypass this and address all three independently from ESP32-S3.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚡ Power Sequencing</div>
+      <ol style="margin-top:4px;">
+        <li>SW1 open → EN floats HIGH → PowerBoost outputs 5V</li>
+        <li>ESP32-S3 receives 5V on its 5V pin → onboard LDO powers up → 3.3V available</li>
+        <li>GY-86 VCC_IN receives 3.3V → sensors initialize</li>
+        <li>ESP32-S3 firmware: init Wire → scan bus → start sensor fusion</li>
+        <li>Monitor GPIO5 for LBO event → handle gracefully</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ───── SECTION 8: DESIGN RULES CHECKLIST ───── -->
+  <div class="section-title">
+    <span class="section-num">§08</span>
+    <h2>Pre-Layout Design Rules Checklist</h2>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">✅ Power & Safety</div>
+      <ul>
+        <li>LBO voltage divider fitted (R1=100kΩ, R2=150kΩ)</li>
+        <li>100nF ceramic cap on GPIO5 (LBO input)</li>
+        <li>100µF bulk cap on 5V rail</li>
+        <li>10µF bulk cap on 3.3V rail</li>
+        <li>Ferrite bead on 3.3V → GY-86 VCC line</li>
+        <li>Power switch on EN pin (NOT in battery path)</li>
+        <li>Battery polarity protection / check JST orientation</li>
+        <li>5V trace width ≥ 1.5mm end-to-end</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">✅ Signal Integrity & RF</div>
+      <ul>
+        <li>I²C pull-ups near GY-86 (check for onboard resistors first)</li>
+        <li>SDA / SCL traces kept short and matched</li>
+        <li>ESP32-S3 antenna area clear of copper flood</li>
+        <li>GY-86 ≥ 20mm from PowerBoost switching converter</li>
+        <li>GND copper pour on bottom layer (4-layer: L2 dedicated)</li>
+        <li>No 5V traces running under GY-86 module</li>
+        <li>Test pads on SDA, SCL, 5V, 3V3, GND for debugging</li>
+        <li>3D clearance for LiPo battery under or beside PCB</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  PCB INTEGRATION REFERENCE — POWERBOOST 500C + GY-86 + ESP32-S3 ZERO &nbsp;·&nbsp; REV A &nbsp;·&nbsp; FOR GAIT ANALYSIS WEARABLE PLATFORM
+</footer>
+
+</body>
+</html>
